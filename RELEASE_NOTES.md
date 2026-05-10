@@ -1,39 +1,37 @@
-## v1.2.25 — AI 行内差异采纳与移动安装包 | Inline AI diff acceptance and mobile installer
+## v1.2.25 — AI 行内差异对比 · 首个 Android 安装包 | Inline AI diff preview · First Android APK
 
 ### 🇨🇳 中文
 
-#### ✍️ 编辑器 AI 工作流
-- **新增行内 AI 差异采纳**：AI 改写会直接在正文中展示差异，保留原文和建议内容的对照关系
-- **支持逐段接受/拒绝**：可一键采用 AI 建议，或拒绝后恢复当前正文，不再需要在聊天面板和编辑器之间来回复制
-- **键盘操作更顺手**：保留 `Tab` 接受、`Esc` 拒绝等快捷交互，适合连续审稿和快速改写
-- **续写与替换体验统一**：续写仍以幽灵文字方式预览，替换类改写则使用更明确的行内差异展示
+#### ✍️ AI 行内差异对比
+- **改写结果直接在正文中展示**：AI 改写不再局限在聊天面板里，改写后的差异会以行内对比的形式直接嵌入正文，原文和建议内容一目了然
+- **逐段接受或拒绝**：每段改写建议都可以单独采纳或放弃，不需要在聊天面板和编辑器之间来回复制
+- **快捷键支持**：`Tab` 采纳当前建议，`Esc` 放弃并恢复原文，适合连续审稿和快速迭代
+- **续写与改写体验分离**：续写仍以幽灵文字预览，改写类操作使用更清晰的行内差异展示，不再混淆
 
-#### 🔐 隐私与发布安全
-- **新增提交前隐私防线**：根仓库加入 pre-commit 检查入口，提交前自动扫描方案文档、移动端私有资产、密钥形态和敏感调试文件
-- **清理敏感调试日志**：移除了设定导入、PDF/PMPX 解析、Firestore 同步、模型拉取等流程中的详细调试输出，避免正文片段、设定名、同步 key 或 payload 出现在日志中
-- **继续隔离移动端源码**：移动端仍保留在私有仓库；公开仓库只发布构建产物，不包含 Flutter 源码和私有路线图
+#### 📱 首个 Android 安装包
+- **Author 移动端正式发布**：本版本起，每次发布都会同时提供 Windows 桌面安装包和 Android APK
+- **正式签名**：APK 使用正式发布签名，后续版本可直接覆盖安装升级
+- **完整性校验**：附带 `.sha256` 校验文件，下载后可核对文件是否完整
 
-#### 📦 安装包
-- **Windows 安装包继续自动发布**：推送 `v1.2.25` 标签后会自动构建桌面端安装包
-- **新增 Android APK 发布链路**：移动端私有仓库可构建签名 APK，并追加上传到本公开 Release
-- **附带校验文件**：Android APK 会同时上传 `.sha256` 校验文件，方便下载后核对完整性
+#### 🔐 安全加固
+- **减少日志敏感输出**：设定导入、PDF/PMPX 解析、云端同步等流程不再在控制台输出详细数据，避免正文片段或设定名意外泄露
+- **提交前自动安全扫描**：新增代码提交前的自动检查机制，防止内部文档或密钥类文件被意外推送到公开仓库
 
 ---
 
 ### 🇬🇧 English
 
-#### ✍️ Editor AI Workflow
-- **Added inline AI diff acceptance**: AI rewrites are now previewed directly in the editor with clear original-vs-suggested text
-- **Accept or reject in place**: Apply an AI suggestion with one action, or reject it and keep the current draft without copying text between the chat panel and editor
-- **Smoother keyboard flow**: `Tab` to accept and `Esc` to reject remain available for faster review and rewrite sessions
-- **Unified continuation and replacement behavior**: Continuations still use ghost text, while replacement rewrites now use explicit inline diff previews
+#### ✍️ Inline AI Diff Preview
+- **Rewrites appear directly in the editor**: AI suggestions are now displayed as inline diffs embedded in your draft, showing original and suggested text side by side
+- **Accept or reject per section**: Each rewrite suggestion can be individually accepted or dismissed — no more copying between the chat panel and the editor
+- **Keyboard shortcuts**: Press `Tab` to accept a suggestion, `Esc` to dismiss and restore the original text, ideal for continuous review
+- **Separated continuation and rewrite previews**: Continuations still use ghost text; rewrites now use a clearer inline diff view to avoid confusion
 
-#### 🔐 Privacy And Release Safety
-- **Added a pre-commit privacy guard**: The public repository now has a hook entry that runs release safety checks before commits, scanning for internal docs, mobile private assets, secret-looking values, and sensitive debug files
-- **Removed sensitive debug logging**: Detailed logs from settings import, PDF/PMPX parsing, Firestore sync, and model fetching were removed to keep draft text, setting names, sync keys, and payloads out of logs
-- **Mobile source remains private**: The mobile app stays in its private repository; the public repository only receives build artifacts, not Flutter source or private planning documents
+#### 📱 First Android APK
+- **Author mobile is officially available**: Starting from this release, both a Windows desktop installer and an Android APK are published together
+- **Production signed**: The APK is signed with the official release key, so future versions can be installed as direct upgrades
+- **Integrity check**: A `.sha256` checksum file is included alongside the APK for download verification
 
-#### 📦 Installers
-- **Windows installer continues to publish automatically**: Pushing the `v1.2.25` tag triggers the desktop installer build
-- **Added Android APK publishing flow**: The private mobile repository can build a signed APK and attach it to this public Release
-- **Checksum included**: The Android APK upload also includes a `.sha256` file for integrity checks
+#### 🔐 Security Hardening
+- **Reduced sensitive log output**: Settings import, PDF/PMPX parsing, and cloud sync no longer print detailed data to the console, preventing accidental exposure of draft content or setting names
+- **Pre-commit safety checks**: A new automated check runs before code commits to prevent internal documents or secret-like files from being pushed to the public repository

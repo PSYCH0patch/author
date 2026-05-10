@@ -1,1 +1,1 @@
-新增 AI 行内差异采纳与移动安装包 | Added inline AI diff acceptance and mobile installer
+AI 行内差异对比 · 首个 Android 安装包 | Inline AI diff preview · First Android APK
