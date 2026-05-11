@@ -6,7 +6,7 @@
 
 以前发现新版本要跳浏览器下载、找文件管理器安装，体验比较割裂。现在更新流程在应用内完成：弹窗里能直接看到更新日志，点"下载并安装"后会显示下载进度，完成后自动唤起系统安装器。如果 GitHub 下载不了，也会自动尝试 Gitee 源。
 
-对于涉及数据格式变更的版本，Release 说明里加上 `[force-update]` 标记后，移动端会隐藏"稍后"按钮，确保用户升级到兼容版本。
+对于涉及数据格式变更的版本，Release 说明里加上强制更新标记后，移动端会隐藏"稍后"按钮，确保用户升级到兼容版本。
 
 #### 🧠 AI 对话关联作品
 
@@ -41,7 +41,7 @@
 
 Previously, updating meant opening a browser, finding the download, and manually installing. Now the entire flow happens inside the app: a dialog shows the changelog, tapping "Download & Install" displays a progress bar, and the system installer opens automatically when done. If GitHub is unreachable, the app falls back to Gitee.
 
-For releases with breaking data changes, adding `[force-update]` to the release body hides the "Later" button and ensures users upgrade.
+For releases with breaking data changes, adding the force-update marker to the release body hides the "Later" button and ensures users upgrade.
 
 #### 🧠 AI chat ↔ work linking
 
