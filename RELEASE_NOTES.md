@@ -1,35 +1,33 @@
-## v1.2.26 — 应用内升级 · AI 关联作品 · 余额自动刷新
+## v1.2.27 — 移动端统计校准与同步状态修复
 
 ### 🇨🇳 中文
 
-#### 📱 应用内升级
+#### 📊 字数统计
 
-以前发现新版本要跳浏览器下载、找文件管理器安装，体验比较割裂。现在更新流程在应用内完成：弹窗里能直接看到更新日志，点"下载并安装"后会显示下载进度，完成后自动唤起系统安装器。如果 GitHub 下载不了，也会自动尝试 Gitee 源。
+- 统一移动端各处字数口径，备忘录、正文、书架、工作台、个人统计、写作目标等界面都使用同一套文本计数规则
+- 正文 HTML / Quill 内容会正确转成可统计文本，章节内容不再因为存储字数为空而被漏算
+- 创作字数会优先统计作品正文，不再把 AI 对话字数混入写作产出
+- 写作目标、快照、阅读模式、章节排序等页面会在旧数据 `wordCount` 过期时自动从正文内容回退计算
 
-对于涉及数据格式变更的版本，Release 说明里加上强制更新标记后，移动端会隐藏"稍后"按钮，确保用户升级到兼容版本。
+#### 🧮 Token 统计
 
-#### 🧠 AI 对话关联作品
+- AI 流式响应现在会读取提供商返回的准确 token usage
+- 支持 OpenAI-compatible、Gemini、Claude/Responses 风格的 usage 字段解析
+- 会话统计优先使用真实返回值，只在没有 provider usage 的旧消息上回退估算
+- Token 统计页文案调整为真实/估算混合口径，避免把估算值当成精确值
 
-- 顶部工具栏新增📖按钮，随时给当前对话关联或更换作品——关联后 AI 会自动读取作品设定作为上下文
-- 历史对话也能补挂作品，不用再为了挂作品专门新建会话
-- 会话列表里能按"关联作品"筛选，快速找到和某个作品相关的所有对话
+#### ☁️ 同步状态
 
-#### ⚡ 流式输出稳定性
+- 修复未登录时个人页仍显示"已同步"的问题，现在显示"云同步未启用"
+- 修复刚登录后沿用旧同步状态的问题，登录、登出、切换账号都会重置同步生命周期
+- 刚登录但还没有真实同步时间时显示"同步就绪"，只有完成同步并产生 `lastSyncTime` 后才显示"已同步"
+- 云同步详情页同步按钮会按登录态和网络状态正确启用/禁用
 
-- 修复了流式生成期间切到后台会报错的问题（现在会自动暂停流，回来继续看已生成的内容）
-- 修复了自由滚动时被强制拉回底部的抖动
+#### 🧪 稳定性
 
-#### 🔌 API 配置
-
-- 填好 API Key 后余额会自动查询，不用每次手动点"查询余额"了
-- 已有余额时按钮文案变成"刷新"，更直观
-- DeepSeek 余额接口修正为官方地址 `GET https://api.deepseek.com/user/balance`
-- 禁用某个 Provider 后不会再退回页面后偷偷重新启用
-
-#### 🚀 启动与登录
-
-- 全新启动动画 + 首次使用引导
-- 移动端可以跳过登录直接使用，登录只影响云同步
+- 增加字数统计、AI usage 解析、Token 汇总、ChatMessage usage 持久化等单元测试
+- `flutter analyze --no-pub` 通过
+- `flutter test --no-pub --reporter expanded` 通过
 
 📦 Windows 安装包由本仓库自动构建，Android APK 由私有移动仓库签名构建后上传至本 Release。
 
@@ -37,33 +35,31 @@
 
 ### 🇬🇧 English
 
-#### 📱 In-app updates
+#### 📊 Word Counts
 
-Previously, updating meant opening a browser, finding the download, and manually installing. Now the entire flow happens inside the app: a dialog shows the changelog, tapping "Download & Install" displays a progress bar, and the system installer opens automatically when done. If GitHub is unreachable, the app falls back to Gitee.
+- Unified mobile word-count behavior across memos, body text, bookshelf, workspace, profile insights, and writing goals
+- Body HTML / Quill content is converted into countable text, so chapter content is no longer missed when stored `wordCount` is stale or empty
+- Creative writing totals now prioritize actual work body text instead of mixing in AI chat text
+- Writing goals, snapshots, reading mode, chapter ordering, and related surfaces fall back to recalculating from chapter content when needed
 
-For releases with breaking data changes, adding the force-update marker to the release body hides the "Later" button and ensures users upgrade.
+#### 🧮 Token Stats
 
-#### 🧠 AI chat ↔ work linking
+- Streaming AI responses now capture accurate token usage returned by providers
+- Added parsing for OpenAI-compatible, Gemini, and Claude/Responses-style usage fields
+- Session statistics prefer reported usage and only estimate legacy messages without provider usage
+- Token stats wording now reflects the mixed reported/estimated model instead of presenting estimates as exact values
 
-- New 📖 button in the toolbar to link or change the associated work — AI will automatically use the work's lore as context
-- Existing conversations can be linked to a work retroactively
-- Session list can be filtered by "linked to work" for quick access
+#### ☁️ Sync Status
 
-#### ⚡ Streaming stability
+- Fixed the profile page showing "Synced" while signed out; it now shows cloud sync as disabled
+- Fixed stale sync state after signing in by resetting sync lifecycle on sign-in, sign-out, and account switches
+- Newly signed-in sessions show "Sync ready" until a real `lastSyncTime` exists; "Synced" is shown only after an actual sync
+- Sync detail actions are enabled or disabled according to authentication and network state
 
-- Fixed crashes when switching to background during streamed responses (the stream now pauses gracefully)
-- Fixed forced scroll-to-bottom jitter while freely scrolling
+#### 🧪 Stability
 
-#### 🔌 API configuration
-
-- Balance auto-refreshes after entering an API key
-- Button label changes to "Refresh" when a balance is already shown
-- DeepSeek balance endpoint corrected to `GET https://api.deepseek.com/user/balance`
-- Disabled providers now stay disabled after navigating away
-
-#### 🚀 Startup & sign-in
-
-- New startup animation + first-run onboarding
-- Mobile app can be used without signing in — sign-in only enables cloud sync
+- Added unit coverage for word counting, AI usage parsing, token aggregation, and ChatMessage usage persistence
+- `flutter analyze --no-pub` passed
+- `flutter test --no-pub --reporter expanded` passed
 
 📦 Windows installer is built from this public repo. Android APK is signed in the private mobile repo and uploaded here.

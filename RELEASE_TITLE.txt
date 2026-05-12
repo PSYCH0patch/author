@@ -1,1 +1,1 @@
-应用内升级 · AI 关联作品 · 余额自动刷新 | In-app updates, work-linked AI chats & auto balance
+移动端统计校准与同步状态修复 | Mobile stats calibration and sync status fixes
