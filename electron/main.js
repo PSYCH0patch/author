@@ -120,7 +120,7 @@ let serverCrashed = false; // 追踪子进程是否已崩溃
 let latestCrashReportPath = null;
 let rendererBreadcrumbs = [];
 
-function getServerUrl(host = '127.0.0.1') {
+function getServerUrl(host = 'localhost') {
     return `http://${host}:${actualPort}`;
 }
 

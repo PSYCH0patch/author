@@ -1,1 +1,1 @@
-修复启动、AI 设定应用与同步体验 | Fixed startup, AI settings, and sync reliability
+修复桌面端升级后看不到本地数据的问题 | Fixed local data visibility after desktop upgrade
