@@ -275,6 +275,27 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
         localStorage.setItem('author-theme', next);
         import('../lib/persistence').then(m => m.persistSet('author-theme', next).catch(() => { }));
     }, [theme, setTheme]);
+    const themeMeta = {
+        light: {
+            icon: <Sun size={18} />,
+            text: t('sidebar.navThemeLight') || '亮色',
+            label: '当前：亮色模式。点击切换到护眼模式',
+        },
+        eye: {
+            icon: <Eye size={18} />,
+            text: '护眼',
+            label: '当前：护眼模式。点击切换到暗色模式',
+        },
+        dark: {
+            icon: <Moon size={18} />,
+            text: t('sidebar.navThemeDark') || '暗色',
+            label: '当前：暗色模式。点击切换到亮色模式',
+        },
+    }[theme] || {
+        icon: <Sun size={18} />,
+        text: t('sidebar.navThemeLight') || '亮色',
+        label: '切换主题',
+    };
 
     // 中文数字 ↔ 阿拉伯数字 互转
     const cnDigits = '零一二三四五六七八九十百千万';
@@ -803,7 +824,7 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                         </div>
                     </div>
                     <div className="sidebar-nav-bottom">
-                        <IconButton icon={theme === 'light' ? <Moon size={18} /> : theme === 'eye' ? <Eye size={18} /> : <Sun size={18} />} label={theme === 'light' ? t('sidebar.tooltipThemeDark') : theme === 'eye' ? '护眼模式' : t('sidebar.tooltipThemeLight')} text={sidebarOpen ? (theme === 'light' ? (t('sidebar.navThemeDark') || '暗色') : theme === 'eye' ? '护眼' : (t('sidebar.navThemeLight') || '亮色')) : undefined} tooltipSide="right" onClick={toggleTheme} className="nav-item" />
+                        <IconButton icon={themeMeta.icon} label={themeMeta.label} text={sidebarOpen ? themeMeta.text : undefined} tooltipSide="right" onClick={toggleTheme} className="nav-item" />
                         <IconButton icon={<History size={18} />} label={t('sidebar.tooltipTimeMachine')} text={sidebarOpen ? (t('sidebar.navSnapshots') || '快照') : undefined} tooltipSide="right" onClick={() => setShowSnapshots(true)} className="nav-item" />
                         <IconButton icon={<FolderOpen size={18} />} label={t('sidebar.menuLoad') || '读档'} text={sidebarOpen ? (t('sidebar.menuLoad') || '读档') : undefined} tooltipSide="right" onClick={() => document.getElementById('project-import-input')?.click()} className="nav-item" />
                         <IconButton icon={<Save size={18} />} label={t('sidebar.menuSave') || '存档'} text={sidebarOpen ? (t('sidebar.menuSave') || '存档') : undefined} tooltipSide="right" onClick={() => { exportProject(); showToast(t('sidebar.exportedProject') || '已导出', 'success'); }} className="nav-item" />

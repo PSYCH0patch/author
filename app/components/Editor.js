@@ -933,7 +933,7 @@ function InlineAI({ editor, onAiRequest, onArchiveGeneration, contextItems, cont
     const onDragStart = useCallback((e) => {
         // 只响应左键，忽略按钮/输入框上的点击
         if (e.button !== 0) return;
-        if (e.target.closest('button') || e.target.closest('input')) return;
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea')) return;
         e.preventDefault();
         const currentTop = dragOffset ? dragOffset.top : position.top;
         const currentLeft = dragOffset ? dragOffset.left : position.left;
@@ -1001,7 +1001,6 @@ function InlineAI({ editor, onAiRequest, onArchiveGeneration, contextItems, cont
         if (pendingGhost) return; // 有待确认的 ghost 时不打开新的
         const selected = getSelectedText();
         setMode(selected ? 'rewrite' : 'continue');
-        setInstruction('');
         updatePosition();
         setDragOffset(null); // 重置拖动偏移
         setVisible(true);
@@ -1011,7 +1010,6 @@ function InlineAI({ editor, onAiRequest, onArchiveGeneration, contextItems, cont
     const close = useCallback(() => {
         if (streaming || pendingGhost || ragLoadingRef.current) return;
         setVisible(false);
-        setInstruction('');
         editor?.chain().focus().run();
     }, [streaming, pendingGhost, editor]);
 
@@ -1344,18 +1342,7 @@ function InlineAI({ editor, onAiRequest, onArchiveGeneration, contextItems, cont
         return () => document.removeEventListener('keydown', handler);
     }, [visible, streaming, pendingGhost, open, close, stop, rejectGhost, acceptGhost]);
 
-    // 点击外部关闭（但待确认状态和RAG加载中不自动关闭）
-    useEffect(() => {
-        if (!visible) return;
-        const handler = (e) => {
-            if (popoverRef.current && !popoverRef.current.contains(e.target)) {
-                if (!streaming && !pendingGhost) close();
-            }
-        };
-        // 延迟注册，避免同一事件循环中触发关闭
-        const timer = setTimeout(() => document.addEventListener('mousedown', handler), 10);
-        return () => { clearTimeout(timer); document.removeEventListener('mousedown', handler); };
-    }, [visible, streaming, pendingGhost, close]);
+    // 浮窗不再因外部点击自动关闭，避免补充指示草稿意外丢失。
 
     // Chat 模式下自动滚到底部
     useEffect(() => {
@@ -1429,6 +1416,14 @@ function InlineAI({ editor, onAiRequest, onArchiveGeneration, contextItems, cont
                         {m.label}
                     </button>
                 ))}
+                <button
+                    className="inline-ai-close-btn"
+                    onClick={close}
+                    disabled={streaming || pendingGhost}
+                    title="关闭，保留未提交的补充指示"
+                >
+                    关闭
+                </button>
             </div>
 
             {/* ===== Chat 模式：聊天面板 ===== */}
@@ -1534,19 +1529,20 @@ function InlineAI({ editor, onAiRequest, onArchiveGeneration, contextItems, cont
 
                     {/* 指令输入 */}
                     <div className="inline-ai-input-row">
-                        <input
+                        <textarea
                             ref={inputRef}
-                            className="inline-ai-input"
+                            className="inline-ai-input inline-ai-textarea"
                             placeholder={mode === 'continue' ? '补充指示（可选），如：写一段打斗场景' : '改写指示（可选），如：更有诗意'}
                             value={instruction}
                             onChange={e => setInstruction(e.target.value)}
                             onKeyDown={e => {
-                                if (e.key === 'Enter' && !streaming) {
+                                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !streaming) {
                                     e.preventDefault();
                                     generate();
                                 }
                             }}
                             disabled={streaming}
+                            rows={4}
                         />
                         {streaming ? (
                             <button className="inline-ai-stop-btn" onClick={stop}>
@@ -1572,7 +1568,7 @@ function InlineAI({ editor, onAiRequest, onArchiveGeneration, contextItems, cont
                     )}
                     {!streaming && !selectedText && (
                         <div className="inline-ai-hint">
-                            将在光标处续写 · Ctrl+J 打开/关闭
+                            将在光标处续写 · Ctrl/⌘+Enter 生成 · 点击“关闭”保留草稿
                         </div>
                     )}
                 </>

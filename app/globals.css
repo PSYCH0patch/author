@@ -3616,7 +3616,7 @@ body.resizing .main-content {
 
 .inline-ai-popover {
   position: fixed;
-  width: 360px;
+  width: 440px;
   max-width: calc(100vw - 32px);
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -3647,6 +3647,7 @@ body.resizing .main-content {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .inline-ai-mode-btn {
@@ -3675,6 +3676,30 @@ body.resizing .main-content {
 }
 
 .inline-ai-mode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.inline-ai-close-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-ui);
+}
+
+.inline-ai-close-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.inline-ai-close-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -4444,6 +4469,13 @@ body.resizing .main-content {
 
 .ghost-text+.ghost-text {
   border-left: none;
+}
+
+.inline-ai-textarea {
+  min-height: 92px;
+  max-height: 220px;
+  line-height: 1.55;
+  resize: vertical;
 }
 
 .ai-diff-delete {

@@ -278,6 +278,37 @@ export default function Home() {
   }, [sessionStore, chatStreaming, scheduleSessionStoreSave]);
 
   useEffect(() => {
+    if (!sessionStoreHydratedRef.current) return;
+    const targetWorkId = activeWorkId || getActiveWorkId() || 'work-default';
+    setSessionStore(prev => {
+      const current = getActiveSession(prev);
+      if (current?.workId === targetWorkId) return prev;
+
+      if (current && !current.workId) {
+        const next = {
+          ...prev,
+          sessions: prev.sessions.map(s =>
+            s.id === current.id ? { ...s, workId: targetWorkId, updatedAt: Date.now() } : s
+          ),
+        };
+        saveSessionStore(next);
+        return next;
+      }
+
+      const sameWorkSession = [...prev.sessions]
+        .filter(s => s.workId === targetWorkId)
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+      if (sameWorkSession) {
+        const next = { ...prev, activeSessionId: sameWorkSession.id };
+        saveSessionStore(next);
+        return next;
+      }
+
+      return createSession(prev, { workId: targetWorkId });
+    });
+  }, [activeWorkId, sessionStore.sessions.length, setSessionStore]);
+
+  useEffect(() => {
     const flushNow = () => {
       if (!sessionStoreHydratedRef.current) return;
       if (sessionAutosaveTimerRef.current) {
@@ -308,6 +339,7 @@ export default function Home() {
     prevWorkIdRef.current = activeWorkId;
     loadChaptersForWork(activeWorkId);
   }, [activeWorkId, loadChaptersForWork]);
+  const contextWorkIdRef = useRef(activeWorkId);
 
   // 章节指纹 —— 当章节改名或拖动排序时会变化，触发上下文列表重建
   const chaptersFingerprint = useMemo(
@@ -318,9 +350,11 @@ export default function Home() {
   // 初始化上下文条目和勾选状态（设定集 + 章节 + 对话历史）
   useEffect(() => {
     if (!activeChapterId) return;
+    let cancelled = false;
 
     const loadContext = async () => {
-      const baseItems = await getContextItems(activeChapterId, chapters);
+      const baseItems = await getContextItems(activeChapterId, chapters, activeWorkId);
+      if (cancelled) return;
 
       // 追加对话历史条目 — 逐条生成，供参考面板单独勾选
       const chatItems = chatHistory.map((m, i) => {
@@ -340,17 +374,23 @@ export default function Home() {
       const allItems = [...baseItems, ...chatItems];
       setContextItems(allItems);
 
-      // 仅首次使用（localStorage无记录）时默认全选启用条目，之后记住用户的勾选
+      const validIds = new Set(allItems.map(it => it.id));
+      const workChanged = contextWorkIdRef.current !== activeWorkId;
+      contextWorkIdRef.current = activeWorkId;
+
+      // 切换作品时参考条目必须跟随当前作品；同作品刷新时只保留仍存在的勾选项。
       setContextSelection(prev => {
-        if (prev.size === 0 && !localStorage.getItem('author-context-selection')) {
+        const retained = new Set([...prev].filter(id => validIds.has(id)));
+        if (workChanged || retained.size === 0) {
           return new Set(allItems.filter(it => it.enabled).map(it => it.id));
         }
-        return prev;
+        return retained;
       });
     };
 
     loadContext();
-  }, [activeChapterId, settingsVersion, chatHistory.length, chaptersFingerprint]);
+    return () => { cancelled = true; };
+  }, [activeWorkId, activeChapterId, settingsVersion, chatHistory.length, chaptersFingerprint]);
 
   // 定时自动存档 (每 15 分钟)
   useEffect(() => {
@@ -391,7 +431,7 @@ export default function Home() {
     let fullText = '';
     try {
       // 使用上下文引擎收集项目信息
-      const context = await buildContext(activeChapterId, text, contextSelection.size > 0 ? contextSelection : null);
+      const context = await buildContext(activeChapterId, text, contextSelection.size > 0 ? contextSelection : null, activeWorkId);
       const systemPrompt = compileSystemPrompt(context, mode);
       const userPrompt = compileUserPrompt(mode, text, instruction);
 
@@ -489,7 +529,7 @@ export default function Home() {
         throw err;
       }
     }
-  }, [activeChapterId, contextSelection, showToast]);
+  }, [activeWorkId, activeChapterId, contextSelection, showToast]);
 
   // AI 生成存档 — Editor 的 ghost text 操作会调用此函数
   const handleArchiveGeneration = useCallback((entry) => {

@@ -49,8 +49,15 @@ export async function ragRecommend(queryText, topN = 10) {
 
 // ==================== Token 预算管理 ====================
 
-export const INPUT_TOKEN_BUDGET = 200000;  // 输入预算（发送给AI的上下文）
+export const DEFAULT_INPUT_TOKEN_BUDGET = 200000;  // 默认输入预算（发送给AI的上下文）
+export const INPUT_TOKEN_BUDGET = DEFAULT_INPUT_TOKEN_BUDGET;  // 兼容旧导入
 export const OUTPUT_TOKEN_BUDGET = 6000;   // 输出预算（AI生成的回复长度，约4500字）
+
+export function normalizeInputTokenBudget(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return DEFAULT_INPUT_TOKEN_BUDGET;
+    return Math.max(1000, Math.min(2000000, parsed));
+}
 
 // 基于 tokenx 库的 token 估算（与 Cherry Studio 同一方案）
 // tokenx 是启发式估算，与实际 tokenizer 会有微小差异（±10-20%），这是正常的
@@ -77,13 +84,14 @@ const PRIORITY = {
  * 获取上下文可勾选条目列表（供「📚 参考」Tab 使用） (Async)
  * 返回扁平化数组，每个条目包含 id, group, name, tokens, category
  */
-export async function getContextItems(activeChapterId, chaptersOverride) {
+export async function getContextItems(activeChapterId, chaptersOverride, workId = null) {
     const settings = getProjectSettings();
-    const chapters = chaptersOverride || await getChapters(getActiveWorkId());
+    const targetWorkId = workId || getActiveWorkId();
+    const chapters = chaptersOverride || await getChapters(targetWorkId);
     const currentIndex = chapters.findIndex(ch => ch.id === activeChapterId);
 
     // getSettingsNodes() 已按当前作品过滤
-    const nodes = await getSettingsNodes();
+    const nodes = await getSettingsNodes(targetWorkId);
     const itemNodes = nodes.filter(n => n.type === 'item');
 
     const items = [];
@@ -180,7 +188,7 @@ export async function getContextItems(activeChapterId, chaptersOverride) {
  * @param {string} selectedText
  * @param {Set|null} selectedIds - 如果提供，只包含 id 在此 Set 中的条目
  */
-export async function buildContext(activeChapterId, selectedText, selectedIds = null, workId = null) {
+export async function buildContext(activeChapterId, selectedText, selectedIds = null, workId = null, inputTokenBudget = DEFAULT_INPUT_TOKEN_BUDGET) {
     const settings = getProjectSettings();
     const targetWorkId = workId || getActiveWorkId();
     const chapters = await getChapters(targetWorkId);
@@ -279,7 +287,7 @@ export async function buildContext(activeChapterId, selectedText, selectedIds = 
     };
 
     // 按优先级分配 token 预算
-    const budgetedModules = applyTokenBudget(rawModules);
+    const budgetedModules = applyTokenBudget(rawModules, inputTokenBudget);
 
     const context = {
         writingMode,
@@ -294,7 +302,7 @@ export async function buildContext(activeChapterId, selectedText, selectedIds = 
 /**
  * 按优先级分配 token 预算，超出时截断低优先级内容
  */
-function applyTokenBudget(modules) {
+function applyTokenBudget(modules, inputTokenBudget = DEFAULT_INPUT_TOKEN_BUDGET) {
     // 计算每个模块的 token
     const entries = Object.entries(modules).map(([key, text]) => ({
         key,
@@ -306,7 +314,7 @@ function applyTokenBudget(modules) {
     // 按优先级排序
     entries.sort((a, b) => a.priority - b.priority);
 
-    let remaining = INPUT_TOKEN_BUDGET;
+    let remaining = normalizeInputTokenBudget(inputTokenBudget);
     const result = {};
 
     for (const entry of entries) {

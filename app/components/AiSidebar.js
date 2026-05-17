@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { INPUT_TOKEN_BUDGET, buildContext, compileSystemPrompt, estimateTokens } from '../lib/context-engine';
+import { DEFAULT_INPUT_TOKEN_BUDGET, buildContext, compileSystemPrompt, estimateTokens, normalizeInputTokenBudget } from '../lib/context-engine';
 import { addTokenRecord, getTokenStats, clearTokenStats } from '../lib/token-stats';
 import {
     saveSessionStore, createSession, deleteSession as deleteSessionFn,
@@ -327,6 +327,18 @@ function ProviderLogo({ provider, model, className = '' }) {
 }
 
 const SETTINGS_ACTION_PATTERN = /(?:```[^\n]*\n?)?\[SETTINGS_ACTION\][\s\S]*?\[\\?\/SETTINGS_ACTION\](?:\s*\n?```)?/g;
+const INPUT_TOKEN_BUDGET_KEY = 'author-ai-input-token-budget';
+
+function loadInputTokenBudget() {
+    if (typeof window === 'undefined') return DEFAULT_INPUT_TOKEN_BUDGET;
+    return normalizeInputTokenBudget(localStorage.getItem(INPUT_TOKEN_BUDGET_KEY));
+}
+
+function formatTokenBudgetLabel(value) {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(value % 1000000 === 0 ? 0 : 1)}m`;
+    if (value >= 1000) return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`;
+    return String(value);
+}
 
 function stripSettingsActionBlocks(content = '') {
     return String(content)
@@ -531,6 +543,16 @@ export default function AiSidebar({ onInsertText }) {
             store = createSession(store, { workId: fallbackWorkId });
             setSessionStore(store);
             session = getActiveSession(store);
+        } else if (session.workId && session.workId !== fallbackWorkId) {
+            const sameWorkSession = [...store.sessions]
+                .filter(s => s.workId === fallbackWorkId)
+                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+            store = sameWorkSession
+                ? { ...store, activeSessionId: sameWorkSession.id }
+                : createSession(store, { workId: fallbackWorkId });
+            saveSessionStore(store);
+            setSessionStore(store);
+            session = getActiveSession(store);
         } else if (!session.workId) {
             store = {
                 ...store,
@@ -572,6 +594,8 @@ export default function AiSidebar({ onInsertText }) {
     // 参考 Tab 状态
     const [contextSearch, setContextSearch] = useState('');
     const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+    const [inputTokenBudget, setInputTokenBudget] = useState(loadInputTokenBudget);
+    const [inputTokenBudgetDraft, setInputTokenBudgetDraft] = useState(() => String(inputTokenBudget));
     // 消息编辑状态
     const [editingMsgId, setEditingMsgId] = useState(null);
     const [editingContent, setEditingContent] = useState('');
@@ -795,7 +819,7 @@ export default function AiSidebar({ onInsertText }) {
                     : (['claude', 'custom-claude'].includes(apiConfig?.provider) || apiConfig?.apiFormat === 'anthropic') ? '/api/ai/claude'
                         : '/api/ai';
 
-            const context = await buildContext(activeChapterId, text, contextSelection.size > 0 ? contextSelection : null, targetWorkId);
+            const context = await buildContext(activeChapterId, text, contextSelection.size > 0 ? contextSelection : null, targetWorkId, inputTokenBudget);
             const systemPrompt = compileSystemPrompt(context, 'chat');
             const historyForApi = selectedHistory.map(m => `${m.role === 'user' ? t('aiSidebar.roleYou') : t('aiSidebar.roleAi')}: ${m.content}`).join('\n');
             const userPrompt = historyForApi ? `${historyForApi}\n${t('aiSidebar.roleYou')}: ${text}` : text;
@@ -893,7 +917,7 @@ export default function AiSidebar({ onInsertText }) {
             abortRef.current = null;
             setChatStreaming(false);
         }
-    }, [activeChapterId, contextSelection, ensureActiveSessionForWork, streamResponse, setSessionStore, setChatStreaming]);
+    }, [activeChapterId, contextSelection, ensureActiveSessionForWork, inputTokenBudget, streamResponse, setSessionStore, setChatStreaming]);
 
     const onRegenerate = useCallback(async (aiMsgId) => {
         if (chatStreaming) return;
@@ -924,7 +948,7 @@ export default function AiSidebar({ onInsertText }) {
                     : (['claude', 'custom-claude'].includes(apiConfig?.provider) || apiConfig?.apiFormat === 'anthropic') ? '/api/ai/claude'
                         : '/api/ai';
 
-            const context = await buildContext(activeChapterId, userMsg.content, contextSelection.size > 0 ? contextSelection : null, targetWorkId);
+            const context = await buildContext(activeChapterId, userMsg.content, contextSelection.size > 0 ? contextSelection : null, targetWorkId, inputTokenBudget);
             const systemPrompt = compileSystemPrompt(context, 'chat');
             const historyForApi = priorHistory
                 .filter(m => m.role === 'user' || m.role === 'assistant')
@@ -1022,7 +1046,7 @@ export default function AiSidebar({ onInsertText }) {
             abortRef.current = null;
             setChatStreaming(false);
         }
-    }, [activeSession, sessionStore, chatHistory, chatStreaming, activeChapterId, contextSelection, streamResponse, setSessionStore, setChatStreaming]);
+    }, [activeSession, sessionStore, chatHistory, chatStreaming, activeChapterId, contextSelection, inputTokenBudget, streamResponse, setSessionStore, setChatStreaming]);
 
     const onApplySettingsAction = useCallback(async (action, actionKey) => {
         try {
@@ -1340,9 +1364,18 @@ export default function AiSidebar({ onInsertText }) {
         setContextSelection(new Set(contextItems.filter(it => it.enabled).map(it => it.id)));
     }, [contextItems, setContextSelection]);
 
+    const updateInputTokenBudget = useCallback((value) => {
+        const normalized = normalizeInputTokenBudget(value);
+        setInputTokenBudget(normalized);
+        setInputTokenBudgetDraft(String(normalized));
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(INPUT_TOKEN_BUDGET_KEY, String(normalized));
+        }
+    }, []);
+
     // Token 预算
-    const budgetPercent = Math.min(100, (totalSelectedTokens / INPUT_TOKEN_BUDGET) * 100);
-    const isOverBudget = totalSelectedTokens > INPUT_TOKEN_BUDGET;
+    const budgetPercent = Math.min(100, (totalSelectedTokens / inputTokenBudget) * 100);
+    const isOverBudget = totalSelectedTokens > inputTokenBudget;
 
     // Token 统计
     const tokenStats = useMemo(() => getTokenStats(), [statsVersion]);
@@ -1993,8 +2026,38 @@ export default function AiSidebar({ onInsertText }) {
                                 <div className="context-budget-label">
                                     <span>{t('aiSidebar.tokenUsage')}</span>
                                     <span className={isOverBudget ? 'context-over-budget' : ''}>
-                                        {totalSelectedTokens.toLocaleString()} / {(INPUT_TOKEN_BUDGET / 1000).toFixed(0)}k
+                                        {totalSelectedTokens.toLocaleString()} / {formatTokenBudgetLabel(inputTokenBudget)}
                                     </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 8px' }}>
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>上限</span>
+                                    <input
+                                        type="number"
+                                        min="1000"
+                                        max="2000000"
+                                        step="1000"
+                                        value={inputTokenBudgetDraft}
+                                        onChange={e => setInputTokenBudgetDraft(e.target.value)}
+                                        onBlur={e => updateInputTokenBudget(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.currentTarget.blur();
+                                            }
+                                        }}
+                                        style={{
+                                            width: 110,
+                                            padding: '4px 7px',
+                                            border: '1px solid var(--border-light)',
+                                            borderRadius: 6,
+                                            background: 'var(--bg-primary)',
+                                            color: 'var(--text-primary)',
+                                            fontSize: 12,
+                                        }}
+                                        title="发送给 AI 的参考上下文 token 上限"
+                                    />
+                                    <button className="btn-mini" onClick={() => updateInputTokenBudget(DEFAULT_INPUT_TOKEN_BUDGET)}>
+                                        默认 200k
+                                    </button>
                                 </div>
                                 <div className="context-budget-track">
                                     <div

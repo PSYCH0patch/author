@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../lib/useI18n';
-import { getSettingsNodes, updateSettingsNode, deleteSettingsNode, saveSettingsNodes, getActiveWorkId, getAllWorks, getChatApiConfig, addWork, removeWork, addSettingsNode, renameWork } from '../lib/settings';
+import { getSettingsNodes, updateSettingsNode, deleteSettingsNode, saveSettingsNodes, getActiveWorkId, setActiveWorkId as setActiveWorkIdSetting, getAllWorks, getChatApiConfig, addWork, removeWork, addSettingsNode, renameWork } from '../lib/settings';
 import { getChapters } from '../lib/storage';
 import { createPortal } from 'react-dom';
 import { promptInput } from '../lib/promptInput';
@@ -537,11 +537,16 @@ export default function BookInfoPanel() {
             setSelectedChapters(workChapters);
             const biNode = allNodes.find(n => n.category === 'bookInfo' && n.type === 'special');
             setBookInfoNode(biNode || null);
-            const data = biNode?.content || {};
+            const rawData = biNode?.content || {};
             const work = works.find(w => w.id === selectedWorkId);
-            // 同步：如果 bookData.title 为空但 work.name 有值，则预填充
-            if (!data.title && work?.name) {
-                data.title = work.name;
+            const data = {
+                ...rawData,
+                title: rawData.title || work?.name || '',
+            };
+            const infoTitle = rawData.title?.trim();
+            if (infoTitle && work?.name !== infoTitle) {
+                setWorks(prev => prev.map(w => w.id === selectedWorkId ? { ...w, name: infoTitle } : w));
+                renameWork(selectedWorkId, infoTitle);
             }
             setBookData(data);
             setGoals(data.goals || []);
@@ -557,6 +562,7 @@ export default function BookInfoPanel() {
     // 显式切换全局活跃作品
     const handleActivateWork = (workId) => {
         const store = useAppStore.getState();
+        setActiveWorkIdSetting(workId);
         if (store.setActiveWorkId) store.setActiveWorkId(workId);
     };
 
