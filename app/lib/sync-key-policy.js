@@ -45,8 +45,11 @@ const LOCAL_ONLY_EXACT_KEYS = new Set([
 
 const LOCAL_ONLY_PREFIXES = [
     'author-ai-session-',
+    'author-active-chapter-',
     'author-bookmarks-',
     'author-chapter-summary-',
+    'author-editor-position-',
+    'author-generation-archive-',
     'author-inspirations-',
     'author-revision-history-',
     'author-timeline-events-',

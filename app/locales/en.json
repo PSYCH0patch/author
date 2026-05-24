@@ -383,7 +383,7 @@
     "defaultVolumeTitle": "Volume {num}",
     "volumeCreated": "Created \"{title}\"",
     "volumeDeleted": "Deleted volume \"{title}\"",
-    "deleteVolume": "Delete Volume",
+    "deleteVolume": "Delete volume: only removes the volume itself, not its chapters",
     "newChapterInVolume": "＋ New Chapter",
     "renumber": "Renumber",
     "renumbered": "Renumbered successfully",

@@ -383,7 +383,7 @@
         "defaultVolumeTitle": "第{num}卷",
         "volumeCreated": "已创建「{title}」",
         "volumeDeleted": "已删除分卷「{title}」",
-        "deleteVolume": "删除分卷",
+        "deleteVolume": "删除分卷：只删除分卷本身，不删除包含的章节",
         "newChapterInVolume": "＋ 新建章节",
         "renumber": "重新编号",
         "renumbered": "已重新编号",

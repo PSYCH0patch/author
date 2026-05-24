@@ -1,7 +1,7 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
-import { TextSelection } from '@tiptap/pm/state';
+import { Selection, TextSelection } from '@tiptap/pm/state';
 import { DOMParser as PmDOMParser } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -24,7 +24,7 @@ import RemarkMark, { promptForRemark } from './RemarkMark';
 import EditorBubbleMenu from './EditorBubbleMenu';
 import { createSlashExtension, SlashCommandMenu } from './SlashCommands';
 import { useEffect, useCallback, useRef, useState, useMemo, useId, forwardRef, useImperativeHandle } from 'react';
-import { ChevronUp, ChevronDown, Undo2, Redo2, Wand2, MessageSquareText } from 'lucide-react';
+import { ChevronUp, ChevronDown, Undo2, Redo2, Wand2, MessageSquareText, Flag } from 'lucide-react';
 import { ragRecommend } from '../lib/context-engine';
 import { useAppStore } from '../store/useAppStore';
 import ModelPicker from './ModelPicker';
@@ -42,6 +42,8 @@ const AI_MODES = [
 // ==================== 虚拟分页常量 ====================
 const PAGE_HEIGHT = 1056; // A4 纸 @ 96dpi
 const PAGE_GAP = 24;      // 页间灰色间隙
+const EDITOR_POSITION_KEY_PREFIX = 'author-editor-position-';
+const MAX_EDITOR_POSITION_ITEMS = 300;
 
 function escapeHtml(text) {
     return String(text)
@@ -52,15 +54,138 @@ function escapeHtml(text) {
         .replace(/'/g, '&#39;');
 }
 
-const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editable = true, onAiRequest, onArchiveGeneration, contextItems, contextSelection, setContextSelection }, ref) {
+function getEditorPositionKey(workId) {
+    return `${EDITOR_POSITION_KEY_PREFIX}${workId || 'work-default'}`;
+}
+
+function getEditorPositionIdentity(workId, chapterId) {
+    return `${workId || 'work-default'}::${chapterId || ''}`;
+}
+
+function loadEditorPositions(workId) {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = localStorage.getItem(getEditorPositionKey(workId));
+        const data = raw ? JSON.parse(raw) : {};
+        return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveEditorPositionRecord(workId, chapterId, position) {
+    if (typeof window === 'undefined' || !chapterId) return;
+    const data = loadEditorPositions(workId);
+    data[chapterId] = {
+        from: Number.isFinite(position.from) ? Math.max(0, Math.round(position.from)) : 0,
+        to: Number.isFinite(position.to) ? Math.max(0, Math.round(position.to)) : 0,
+        scrollTop: Number.isFinite(position.scrollTop) ? Math.max(0, Math.round(position.scrollTop)) : 0,
+        updatedAt: Date.now(),
+    };
+
+    const entries = Object.entries(data)
+        .sort((a, b) => (b[1]?.updatedAt || 0) - (a[1]?.updatedAt || 0))
+        .slice(0, MAX_EDITOR_POSITION_ITEMS);
+    localStorage.setItem(getEditorPositionKey(workId), JSON.stringify(Object.fromEntries(entries)));
+}
+
+function loadEditorPositionRecord(workId, chapterId) {
+    if (!chapterId) return null;
+    const record = loadEditorPositions(workId)[chapterId];
+    if (!record || typeof record !== 'object') return null;
+    return record;
+}
+
+function clampDocPosition(doc, pos) {
+    const max = Math.max(0, doc.content.size);
+    if (!Number.isFinite(pos)) return max;
+    return Math.max(0, Math.min(Math.round(pos), max));
+}
+
+function saveEditorPositionSnapshot(targetEditor, workId, chapterId, container) {
+    if (!targetEditor || !chapterId) return;
+    const { selection } = targetEditor.state;
+    saveEditorPositionRecord(workId, chapterId, {
+        from: selection.from,
+        to: selection.to,
+        scrollTop: container?.scrollTop || 0,
+    });
+}
+
+function restoreEditorPositionSnapshot(targetEditor, workId, chapterId, container) {
+    if (!targetEditor || !chapterId) return false;
+    const record = loadEditorPositionRecord(workId, chapterId);
+    if (!record) return false;
+
+    const { doc } = targetEditor.state;
+    const from = clampDocPosition(doc, record.from);
+    const to = clampDocPosition(doc, record.to ?? record.from);
+    const safeFrom = Math.min(from, to);
+    const safeTo = Math.max(from, to);
+
+    try {
+        const selection = TextSelection.create(doc, safeFrom, safeTo);
+        targetEditor.view.dispatch(
+            targetEditor.state.tr
+                .setSelection(selection)
+                .setMeta('addToHistory', false),
+        );
+    } catch {
+        try {
+            const resolved = doc.resolve(safeFrom);
+            const selection = Selection.near(resolved, -1);
+            targetEditor.view.dispatch(
+                targetEditor.state.tr
+                    .setSelection(selection)
+                    .setMeta('addToHistory', false),
+            );
+        } catch {
+            return false;
+        }
+    }
+
+    const rememberedScrollTop = Number.isFinite(record.scrollTop)
+        ? Math.max(0, Math.round(record.scrollTop))
+        : null;
+
+    if (container && rememberedScrollTop !== null) {
+        container.scrollTop = rememberedScrollTop;
+    }
+
+    try {
+        targetEditor.view.dom.focus({ preventScroll: true });
+    } catch {
+        targetEditor.view.focus();
+    }
+
+    if (container && rememberedScrollTop !== null) {
+        container.scrollTop = rememberedScrollTop;
+        requestAnimationFrame(() => {
+            container.scrollTop = rememberedScrollTop;
+        });
+    }
+    return true;
+}
+
+const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-default', onUpdate, editable = true, onAiRequest, onArchiveGeneration, chapterNumberingIgnored = false, onToggleSpecialChapter, contextItems, contextSelection, setContextSelection }, ref) {
     const clipPathId = useId();
     const debounceRef = useRef(null);
+    const positionSaveTimerRef = useRef(null);
+    const positionRestoreSeqRef = useRef(0);
+    const restoredPositionKeyRef = useRef(null);
     const saveQueueRef = useRef(Promise.resolve({ changed: false }));
     const queuedSaveKeyRef = useRef(null);
     const lastCompletedSaveKeyRef = useRef(null);
     const isLoadingContentRef = useRef(false);
     const contentRef = useRef(null);
+    const containerRef = useRef(null);
     const workspaceRef = useRef(null);
+    const normalizedWorkId = workId || 'work-default';
+    const latestPositionTargetRef = useRef({ workId: normalizedWorkId, chapterId });
+
+    useEffect(() => {
+        latestPositionTargetRef.current = { workId: normalizedWorkId, chapterId };
+    }, [chapterId, normalizedWorkId]);
 
     // 页数状态
     const [pageCount, setPageCount] = useState(1);
@@ -150,6 +275,53 @@ const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editab
         saveQueueRef.current = nextSave;
         return nextSave;
     }, [onUpdate]);
+
+    const saveCurrentEditorPosition = useCallback((targetEditor, targetChapterId, targetWorkId) => {
+        const latest = latestPositionTargetRef.current;
+        saveEditorPositionSnapshot(
+            targetEditor,
+            targetWorkId || latest.workId,
+            targetChapterId || latest.chapterId,
+            containerRef.current,
+        );
+    }, []);
+
+    const flushCurrentEditorPosition = useCallback((targetEditor, targetChapterId, targetWorkId) => {
+        if (positionSaveTimerRef.current) {
+            clearTimeout(positionSaveTimerRef.current);
+            positionSaveTimerRef.current = null;
+        }
+        saveCurrentEditorPosition(targetEditor, targetChapterId, targetWorkId);
+    }, [saveCurrentEditorPosition]);
+
+    const scheduleCurrentEditorPosition = useCallback((targetEditor, targetChapterId, targetWorkId) => {
+        if (!targetEditor || isLoadingContentRef.current) return;
+        if (positionSaveTimerRef.current) clearTimeout(positionSaveTimerRef.current);
+        positionSaveTimerRef.current = setTimeout(() => {
+            positionSaveTimerRef.current = null;
+            saveCurrentEditorPosition(targetEditor, targetChapterId, targetWorkId);
+        }, 250);
+    }, [saveCurrentEditorPosition]);
+
+    const restoreCurrentEditorPosition = useCallback((targetEditor, targetChapterId, targetWorkId) => {
+        if (!targetEditor || !targetChapterId) return;
+        const targetIdentity = getEditorPositionIdentity(targetWorkId, targetChapterId);
+        const restoreSeq = positionRestoreSeqRef.current + 1;
+        positionRestoreSeqRef.current = restoreSeq;
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (positionRestoreSeqRef.current !== restoreSeq) return;
+                const latest = latestPositionTargetRef.current;
+                if (getEditorPositionIdentity(latest.workId, latest.chapterId) !== targetIdentity) return;
+                const restored = restoreEditorPositionSnapshot(targetEditor, targetWorkId, targetChapterId, containerRef.current);
+                if (!restored && containerRef.current) {
+                    containerRef.current.scrollTop = 0;
+                }
+                restoredPositionKeyRef.current = targetIdentity;
+            });
+        });
+    }, []);
 
     const editor = useEditor({
         immediatelyRender: false,
@@ -246,6 +418,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editab
         onUpdate: ({ editor }) => {
             // 跳过程序化 setContent 触发的 onUpdate（章节/作品切换）
             if (isLoadingContentRef.current) return;
+            scheduleCurrentEditorPosition(editor);
             if (debounceRef.current) clearTimeout(debounceRef.current);
             debounceRef.current = setTimeout(() => {
                 debounceRef.current = null;
@@ -253,6 +426,9 @@ const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editab
                     console.error('Editor autosave failed:', err);
                 });
             }, 500);
+        },
+        onSelectionUpdate: ({ editor }) => {
+            scheduleCurrentEditorPosition(editor);
         },
     });
 
@@ -276,16 +452,22 @@ const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editab
 
     // 切换章节时重置编辑器内容（替代 key={chapterId} 强制重挂载，避免闪白）
     const prevChapterIdRef = useRef(chapterId);
+    const prevWorkIdRef = useRef(normalizedWorkId);
     useEffect(() => {
         if (!editor || content === undefined) return;
 
-        if (prevChapterIdRef.current !== chapterId) {
+        const currentIdentity = getEditorPositionIdentity(normalizedWorkId, chapterId);
+        const chapterChanged = prevChapterIdRef.current !== chapterId || prevWorkIdRef.current !== normalizedWorkId;
+
+        if (chapterChanged) {
+            flushCurrentEditorPosition(editor, prevChapterIdRef.current, prevWorkIdRef.current);
             // 章节切换：清理旧防抖定时器，防止旧章节的延迟保存触发
             if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
                 debounceRef.current = null;
             }
             prevChapterIdRef.current = chapterId;
+            prevWorkIdRef.current = normalizedWorkId;
             // 设置静默标记，阻止 setContent 触发 onUpdate → saveChapters
             isLoadingContentRef.current = true;
             editor.commands.setContent(content || '', false);
@@ -293,9 +475,8 @@ const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editab
             const { tr } = editor.state;
             editor.view.dispatch(tr.setMeta('addToHistory', false));
             isLoadingContentRef.current = false;
-            // 滚动到顶部
-            const container = document.querySelector('.editor-container');
-            if (container) container.scrollTop = 0;
+            restoredPositionKeyRef.current = null;
+            restoreCurrentEditorPosition(editor, chapterId, normalizedWorkId);
             return;
         }
 
@@ -312,7 +493,40 @@ const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editab
                 isLoadingContentRef.current = false;
             }
         }
-    }, [content, chapterId, editor]);
+
+        if (restoredPositionKeyRef.current !== currentIdentity) {
+            restoreCurrentEditorPosition(editor, chapterId, normalizedWorkId);
+        }
+    }, [chapterId, content, editor, flushCurrentEditorPosition, normalizedWorkId, restoreCurrentEditorPosition]);
+
+    useEffect(() => {
+        if (!editor) return;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            scheduleCurrentEditorPosition(editor);
+        };
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            flushCurrentEditorPosition(editor);
+        };
+    }, [editor, flushCurrentEditorPosition, scheduleCurrentEditorPosition]);
+
+    useEffect(() => {
+        if (!editor || typeof window === 'undefined') return;
+        const handlePageHide = () => {
+            flushCurrentEditorPosition(editor);
+        };
+        window.addEventListener('pagehide', handlePageHide);
+        window.addEventListener('beforeunload', handlePageHide);
+        return () => {
+            window.removeEventListener('pagehide', handlePageHide);
+            window.removeEventListener('beforeunload', handlePageHide);
+            flushCurrentEditorPosition(editor);
+        };
+    }, [editor, flushCurrentEditorPosition]);
 
     // 将方法暴露给父组件
     useEffect(() => {
@@ -400,8 +614,15 @@ const Editor = forwardRef(function Editor({ content, chapterId, onUpdate, editab
 
     return (
         <>
-            <EditorToolbar editor={editor} margins={margins} setMargins={setMargins} />
+            <EditorToolbar
+                editor={editor}
+                margins={margins}
+                setMargins={setMargins}
+                chapterNumberingIgnored={chapterNumberingIgnored}
+                onToggleSpecialChapter={onToggleSpecialChapter}
+            />
             <div
+                ref={containerRef}
                 className="editor-container"
                 onMouseDown={(e) => {
                     // 记录 mousedown 是否在 tiptap 内部，避免拖选文字松开时误触发 focus('end')
@@ -1820,7 +2041,7 @@ const FONT_FAMILIES = [
 const FONT_SIZES = [12, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32];
 
 // ==================== 工具栏 ====================
-function EditorToolbar({ editor, margins, setMargins }) {
+function EditorToolbar({ editor, margins, setMargins, chapterNumberingIgnored = false, onToggleSpecialChapter }) {
     const [showFontColor, setShowFontColor] = useState(false);
     const [showBgColor, setShowBgColor] = useState(false);
     const [showFontFamily, setShowFontFamily] = useState(false);
@@ -1959,6 +2180,23 @@ function EditorToolbar({ editor, margins, setMargins }) {
             <ModelPicker target="embed" dropDirection="down" />
 
             <div className="toolbar-divider" />
+
+            {onToggleSpecialChapter && (
+                <>
+                    <div className="toolbar-group">
+                        <button
+                            className={`toolbar-btn special-chapter-toggle ${chapterNumberingIgnored ? 'active' : ''}`}
+                            onClick={onToggleSpecialChapter}
+                            title={chapterNumberingIgnored ? '取消特殊章节标记' : '设为特殊章节，重排编号时忽略'}
+                        >
+                            <Flag size={15} strokeWidth={2.4} />
+                            <span>特殊章节</span>
+                        </button>
+                    </div>
+
+                    <div className="toolbar-divider" />
+                </>
+            )}
 
             {/* 一键排版/撤销/重做 */}
             <div className="toolbar-group">

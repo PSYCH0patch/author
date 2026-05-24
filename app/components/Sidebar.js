@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react
 import { createPortal } from 'react-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../lib/useI18n';
-import { createChapter, deleteChapter, updateChapter, saveChapters, getChapters, createVolume, insertChapterInVolume, reorderItems } from '../lib/storage';
+import { createChapter, deleteChapter, updateChapter, saveChapters, getChapters, createVolume, insertChapterAfter, insertChapterInVolume, reorderItems } from '../lib/storage';
 import { exportProject, importProject, importWork, exportWorkAsTxt, exportWorkAsMarkdown, exportWorkAsDocx, exportWorkAsEpub, exportWorkAsPdf } from '../lib/project-io';
 import { WRITING_MODES, getAllWorks, getSettingsNodes, addWork, saveSettingsNodes, setActiveWorkId as setActiveWorkIdSetting, getActiveWorkId } from '../lib/settings';
 import { detectConflicts, mergeChapters } from '../lib/chapter-number';
@@ -355,6 +355,17 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
 
     // 从章节列表中向前搜索最近的带数字章节，推算下一章名
     // volumeId: 如果指定，只在该分卷内的章节中查找编号
+    const makeUniqueChapterTitle = useCallback((baseTitle) => {
+        const fallback = baseTitle || t('sidebar.defaultChapterTitle').replace('{num}', chapters.length + 1);
+        const existing = new Set(chapters.map(ch => ch.title).filter(Boolean));
+        if (!existing.has(fallback)) return fallback;
+        const first = `${fallback}（新）`;
+        if (!existing.has(first)) return first;
+        let index = 2;
+        while (existing.has(`${fallback}（新${index}）`)) index++;
+        return `${fallback}（新${index}）`;
+    }, [chapters, t]);
+
     const getNextChapterTitle = useCallback((volumeId) => {
         if (chapters.length === 0) return t('sidebar.defaultChapterTitle').replace('{num}', 1);
 
@@ -369,6 +380,7 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                 }
                 // 从该分卷的最后一章向前找
                 for (let i = volChapters.length - 1; i >= 0; i--) {
+                    if (volChapters[i].numberingIgnored) continue;
                     const next = tryNextTitle(volChapters[i].title);
                     if (next) return next;
                 }
@@ -378,16 +390,18 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
 
         // 全局：从最后一章向前找，跳过"更新说明"等非标准章节
         for (let i = chapters.length - 1; i >= 0; i--) {
+            if (chapters[i].type === 'volume' || chapters[i].numberingIgnored) continue;
             const next = tryNextTitle(chapters[i].title);
             if (next) return next;
         }
-        return t('sidebar.defaultChapterTitle').replace('{num}', chapters.length + 1);
+        const regularCount = chapters.filter(ch => (ch.type || 'chapter') !== 'volume' && !ch.numberingIgnored).length;
+        return t('sidebar.defaultChapterTitle').replace('{num}', regularCount + 1);
     }, [chapters, t]);
 
     // 创建新章节 — 支持分卷内创建
     const handleCreateChapter = useCallback(async (volumeId) => {
         const targetVol = volumeId || activeVolumeId;
-        const title = getNextChapterTitle(targetVol);
+        const title = makeUniqueChapterTitle(getNextChapterTitle(targetVol));
         if (targetVol) {
             // 在分卷内创建
             const result = await insertChapterInVolume(title, targetVol, activeWorkId);
@@ -403,7 +417,28 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
             setRenameTitle(title);
         }
         showToast(t('sidebar.chapterCreated').replace('{title}', title), 'success');
-    }, [getNextChapterTitle, showToast, addChapter, setChapters, setActiveChapterId, t, activeWorkId, activeVolumeId]);
+    }, [getNextChapterTitle, makeUniqueChapterTitle, showToast, addChapter, setChapters, setActiveChapterId, t, activeWorkId, activeVolumeId]);
+
+    const getNextChapterTitleAfter = useCallback((afterId) => {
+        const startIndex = chapters.findIndex(ch => ch.id === afterId);
+        for (let i = startIndex; i >= 0; i--) {
+            const item = chapters[i];
+            if (!item || item.type === 'volume' || item.numberingIgnored) continue;
+            const next = tryNextTitle(item.title);
+            if (next) return makeUniqueChapterTitle(next);
+        }
+        return makeUniqueChapterTitle(getNextChapterTitle());
+    }, [chapters, getNextChapterTitle, makeUniqueChapterTitle]);
+
+    const handleCreateChapterAfter = useCallback(async (afterId) => {
+        const title = getNextChapterTitleAfter(afterId);
+        const result = await insertChapterAfter(title, afterId, activeWorkId);
+        setChapters(result.chapters);
+        setActiveChapterId(result.chapter.id);
+        setRenameId(result.chapter.id);
+        setRenameTitle(title);
+        showToast(t('sidebar.chapterCreated').replace('{title}', title), 'success');
+    }, [activeWorkId, getNextChapterTitleAfter, setActiveChapterId, setChapters, showToast, t]);
 
     // 删除章节/分卷
     const handleDeleteChapter = useCallback(async (id) => {
@@ -441,6 +476,18 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
         setRenameId(null);
         setRenameTitle('');
     }, [renameTitle, updateChapterStore, activeWorkId]);
+
+    const handleToggleSpecialChapter = useCallback(async (id) => {
+        const item = chapters.find(c => c.id === id);
+        if (!item || item.type === 'volume') return;
+        const numberingIgnored = !item.numberingIgnored;
+        await updateChapter(id, { numberingIgnored }, activeWorkId);
+        updateChapterStore(id, { numberingIgnored });
+        showToast(numberingIgnored
+            ? `「${item.title}」已设为特殊章节，重排编号时会跳过`
+            : `「${item.title}」已恢复普通章节`,
+            'success');
+    }, [activeWorkId, chapters, showToast, updateChapterStore]);
 
     // ===== 分卷管理 =====
     const getNextVolumeTitle = useCallback(() => {
@@ -488,6 +535,7 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                 }
                 // 无编号分卷跳过
             } else {
+                if (item.numberingIgnored) continue;
                 // 检测章节编号模式
                 const mArabic = title.match(/^(第)(\d+)(章.*)$/);
                 const mChinese = title.match(/^(第)([零一二三四五六七八九十百千万]+)(章.*)$/);
@@ -1021,6 +1069,10 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                     onDragOver={(e) => handleDragOver(e, ch.id)}
                                     onDrop={handleDrop}
                                     onDragEnd={handleDragEnd}
+                                    onContextMenu={(e) => {
+                                        e.preventDefault();
+                                        setContextMenu({ id: ch.id, x: e.clientX, y: e.clientY });
+                                    }}
                                     onClick={() => {
                                         if (isActive) {
                                             setOutlineCollapsed(prev => !prev);
@@ -1050,7 +1102,12 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                         <>
                                             <span className="gdocs-tab-arrow" style={{ transform: isExpanded ? 'rotate(90deg)' : 'none' }}>▶</span>
                                             <span style={{ flex: 1, minWidth: 0 }}>
-                                                <span className="gdocs-tab-title">{ch.title}</span>
+                                                <span className="gdocs-tab-title">
+                                                    {ch.title}
+                                                    {ch.numberingIgnored && (
+                                                        <span className="gdocs-special-badge" title="特殊章节：重排编号时忽略">特殊</span>
+                                                    )}
+                                                </span>
                                                 {(ch.wordCount || 0) > 0 && (
                                                     <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
                                                         {ch.wordCount.toLocaleString()}字 · ~{estimateTokens((ch.content || '').replace(/<[^>]*>/g, '')).toLocaleString()} tokens
@@ -1058,6 +1115,22 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                                 )}
                                             </span>
                                             <div className="gdocs-tab-actions">
+                                                <button
+                                                    className="gdocs-tab-action-btn"
+                                                    title="在此后插入章节"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCreateChapterAfter(ch.id);
+                                                    }}
+                                                ><Plus size={14} /></button>
+                                                <button
+                                                    className={`gdocs-tab-action-btn special${ch.numberingIgnored ? ' active' : ''}`}
+                                                    title={ch.numberingIgnored ? '取消特殊章节标记' : '设为特殊章节，重排编号时忽略'}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleSpecialChapter(ch.id);
+                                                    }}
+                                                >特</button>
                                                 <button
                                                     className="gdocs-tab-action-btn"
                                                     title={t('sidebar.contextRename')}
@@ -1163,6 +1236,11 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                     <div className="dropdown-menu" style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y }}>
                         <button className="dropdown-item" onClick={() => { setRenameId(contextMenu.id); const ch = chapters.find(c => c.id === contextMenu.id); setRenameTitle(ch?.title || ''); setContextMenu(null); }}>{t('sidebar.contextRename')}</button>
                         <button className="dropdown-item" onClick={() => { const ch = chapters.find(c => c.id === contextMenu.id); if (ch) exportWorkAsMarkdown([ch], ch.title); setContextMenu(null); }}>{t('sidebar.contextExport')}</button>
+                        {chapters.find(c => c.id === contextMenu.id)?.type !== 'volume' && (
+                            <button className="dropdown-item" onClick={() => { handleToggleSpecialChapter(contextMenu.id); setContextMenu(null); }}>
+                                {chapters.find(c => c.id === contextMenu.id)?.numberingIgnored ? '取消特殊章节' : '设为特殊章节'}
+                            </button>
+                        )}
                         <button className="dropdown-item danger" onClick={() => handleDeleteChapter(contextMenu.id)}>{t('sidebar.contextDelete')}</button>
                     </div>
                 </div>

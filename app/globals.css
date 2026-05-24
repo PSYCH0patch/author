@@ -1177,6 +1177,36 @@ body.resizing .main-content {
   background: rgba(248, 113, 113, 0.15);
 }
 
+.gdocs-tab-action-btn.special {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.gdocs-tab-action-btn.special.active {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.gdocs-special-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  vertical-align: 1px;
+}
+
+[data-theme="dark"] .gdocs-tab-action-btn.special.active,
+[data-theme="dark"] .gdocs-special-badge {
+  color: #fbbf24;
+}
+
 /* 章节分组容器（展开/收起） */
 .gdocs-tab-group {
   display: flex;
@@ -1408,6 +1438,42 @@ body.resizing .main-content {
 .toolbar-btn.active {
   background: var(--accent-light);
   color: var(--accent);
+}
+
+.toolbar-btn.special-chapter-toggle {
+  min-width: 88px;
+  gap: 5px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.08);
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.toolbar-btn.special-chapter-toggle:hover {
+  background: rgba(245, 158, 11, 0.16);
+  color: #78350f;
+}
+
+.toolbar-btn.special-chapter-toggle.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #fff;
+}
+
+[data-theme="dark"] .toolbar-btn.special-chapter-toggle {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .toolbar-btn.special-chapter-toggle:hover {
+  background: rgba(245, 158, 11, 0.18);
+}
+
+[data-theme="dark"] .toolbar-btn.special-chapter-toggle.active {
+  background: #d97706;
+  border-color: #d97706;
+  color: #fff7ed;
 }
 
 /* 工具栏下拉容器 */

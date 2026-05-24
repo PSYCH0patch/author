@@ -72,6 +72,23 @@ export async function createChapter(title = '未命名章节', workId) {
     return newChapter;
 }
 
+// 在指定条目后插入新章节 (Async)
+export async function insertChapterAfter(title = '未命名章节', afterId, workId) {
+    const chapters = await getChapters(workId);
+    const newChapter = {
+        id: generateId(),
+        title,
+        content: '',
+        wordCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    };
+    const index = chapters.findIndex(ch => ch.id === afterId);
+    chapters.splice(index === -1 ? chapters.length : index + 1, 0, newChapter);
+    await saveChapters(chapters, workId);
+    return { chapter: newChapter, chapters };
+}
+
 // 更新章节 (Async)
 export async function updateChapter(id, updates, workId) {
     const chapters = await getChapters(workId);

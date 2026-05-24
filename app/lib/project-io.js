@@ -26,6 +26,7 @@ const RAW_LOCAL_IMPORT_FIELDS = new Set(['activeWork', 'theme', 'lang', 'visual'
 const EXCLUDED_LOCAL_ONLY_EXPORT_KEYS = [
     'author-api-config',
     'author-api-profiles',
+    'author-active-chapter-*',
     'author-ai-prompt-templates-v1',
     'author-ai-session-*',
     'author-ai-sessions',
@@ -34,6 +35,7 @@ const EXCLUDED_LOCAL_ONLY_EXPORT_KEYS = [
     'author-snapshot-latest',
     'author-token-stats',
     'author-chapter-summary-*',
+    'author-editor-position-*',
 ];
 
 function sanitizeProjectSettingsForExport(settings) {

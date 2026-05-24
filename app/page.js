@@ -23,6 +23,7 @@ import { getProjectSettings, WRITING_MODES, getWritingMode, addSettingsNode, upd
 import {
   loadSessionStore, saveSessionStore, createSession, getActiveSession,
 } from './lib/chat-sessions';
+import { loadGenerationArchive, normalizeGenerationArchive, saveGenerationArchive } from './lib/generation-archive';
 import { exportProject, importProject } from './lib/project-io';
 import { createSnapshot } from './lib/snapshots';
 import { initDiagnostics, recordDiagnosticEvent } from './lib/diagnostics';
@@ -49,6 +50,34 @@ const LoginModal = dynamic(() => import('./components/LoginModal'), { ssr: false
 const AccountModal = dynamic(() => import('./components/AccountModal'), { ssr: false });
 const RegisterModal = dynamic(() => import('./components/RegisterModal'), { ssr: false });
 const SyncGuideModal = dynamic(() => import('./components/SyncGuideModal'), { ssr: false });
+
+const ACTIVE_CHAPTER_KEY_PREFIX = 'author-active-chapter-';
+
+function getWorkScopedId(workId) {
+  return workId || getActiveWorkId() || 'work-default';
+}
+
+function isWritableChapter(chapter) {
+  return chapter && (chapter.type || 'chapter') !== 'volume';
+}
+
+function getRememberedChapterId(workId) {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(`${ACTIVE_CHAPTER_KEY_PREFIX}${getWorkScopedId(workId)}`) || null;
+}
+
+function rememberChapterId(workId, chapterId) {
+  if (typeof window === 'undefined' || !chapterId) return;
+  localStorage.setItem(`${ACTIVE_CHAPTER_KEY_PREFIX}${getWorkScopedId(workId)}`, chapterId);
+}
+
+function chooseActiveChapterForWork(chapters, workId) {
+  const realChapters = Array.isArray(chapters) ? chapters.filter(isWritableChapter) : [];
+  if (realChapters.length === 0) return null;
+
+  const rememberedId = getRememberedChapterId(workId);
+  return realChapters.find(ch => ch.id === rememberedId) || realChapters[0];
+}
 
 export default function Home() {
   const {
@@ -78,6 +107,11 @@ export default function Home() {
   const sessionStoreHydratedRef = useRef(false);
   const latestSessionStoreRef = useRef(sessionStore);
   const sessionAutosaveTimerRef = useRef(null);
+  const chapterLoadSeqRef = useRef(0);
+  const chaptersWorkIdRef = useRef(null);
+  const generationArchiveHydratedRef = useRef(false);
+  const generationArchiveLoadSeqRef = useRef(0);
+  const generationArchiveWorkIdRef = useRef(null);
   const flushPendingEditorSave = useCallback(async () => {
     if (!editorRef.current?.flushPendingSave) {
       return { changed: false };
@@ -215,25 +249,36 @@ export default function Home() {
 
   // 加载指定作品的章节
   const loadChaptersForWork = useCallback(async (workId) => {
-    let saved = await getChapters(workId);
+    const targetWorkId = getWorkScopedId(workId);
+    const loadSeq = chapterLoadSeqRef.current + 1;
+    chapterLoadSeqRef.current = loadSeq;
+
+    let saved = await getChapters(targetWorkId);
     // 自动修复：过滤掉损坏的章节数据
     if (Array.isArray(saved)) {
       const cleaned = saved.filter(ch => ch && typeof ch === 'object' && ch.id);
       if (cleaned.length !== saved.length) {
         console.warn(`[数据修复] 发现 ${saved.length - cleaned.length} 条损坏的章节数据，已自动清理`);
         saved = cleaned;
-        await saveChapters(saved, workId);
+        await saveChapters(saved, targetWorkId);
       }
     } else {
       saved = [];
     }
+    if (chapterLoadSeqRef.current !== loadSeq) return;
+
+    chaptersWorkIdRef.current = targetWorkId;
     if (saved.length === 0) {
-      const first = await createChapter(t('page.firstChapterTitle'), workId);
+      const first = await createChapter(t('page.firstChapterTitle'), targetWorkId);
+      if (chapterLoadSeqRef.current !== loadSeq) return;
       setChapters([first]);
       setActiveChapterId(first.id);
+      rememberChapterId(targetWorkId, first.id);
     } else {
+      const targetChapter = chooseActiveChapterForWork(saved, targetWorkId);
       setChapters(saved);
-      setActiveChapterId(saved[0].id);
+      setActiveChapterId(targetChapter?.id || null);
+      if (targetChapter?.id) rememberChapterId(targetWorkId, targetChapter.id);
     }
   }, [t, setChapters, setActiveChapterId]);
 
@@ -307,6 +352,26 @@ export default function Home() {
       return createSession(prev, { workId: targetWorkId });
     });
   }, [activeWorkId, sessionStore.sessions.length, setSessionStore]);
+
+  useEffect(() => {
+    const workId = activeWorkId || getActiveWorkId() || 'work-default';
+    const seq = generationArchiveLoadSeqRef.current + 1;
+    generationArchiveLoadSeqRef.current = seq;
+    generationArchiveHydratedRef.current = false;
+    generationArchiveWorkIdRef.current = workId;
+
+    loadGenerationArchive(workId).then((archive) => {
+      if (generationArchiveLoadSeqRef.current !== seq) return;
+      setGenerationArchive(archive);
+      generationArchiveHydratedRef.current = true;
+    });
+  }, [activeWorkId, setGenerationArchive]);
+
+  useEffect(() => {
+    if (!generationArchiveHydratedRef.current) return;
+    const workId = generationArchiveWorkIdRef.current || activeWorkId || getActiveWorkId() || 'work-default';
+    saveGenerationArchive(workId, generationArchive);
+  }, [activeWorkId, generationArchive]);
 
   useEffect(() => {
     const flushNow = () => {
@@ -409,8 +474,29 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    const targetWorkId = getWorkScopedId(activeWorkId);
+    if (chaptersWorkIdRef.current !== targetWorkId) return;
+    const selectedChapter = chapters.find(ch => ch.id === activeChapterId);
+    if (!isWritableChapter(selectedChapter)) return;
+    rememberChapterId(targetWorkId, activeChapterId);
+  }, [activeChapterId, activeWorkId, chapters]);
+
   // 当前活跃章节
-  const activeChapter = Array.isArray(chapters) ? chapters.find(ch => ch.id === activeChapterId) : null;
+  const activeChapter = Array.isArray(chapters) ? chapters.find(ch => ch.id === activeChapterId && isWritableChapter(ch)) : null;
+
+  const handleToggleActiveChapterSpecial = useCallback(async () => {
+    if (!activeChapter || (activeChapter.type || 'chapter') === 'volume') return;
+    const numberingIgnored = !activeChapter.numberingIgnored;
+    await updateChapter(activeChapter.id, { numberingIgnored }, activeWorkId);
+    updateChapterStore(activeChapter.id, { numberingIgnored });
+    showToast(
+      numberingIgnored
+        ? `「${activeChapter.title}」已设为特殊章节，重排编号时会跳过`
+        : `「${activeChapter.title}」已恢复普通章节`,
+      'success'
+    );
+  }, [activeChapter, activeWorkId, showToast, updateChapterStore]);
 
   const handleEditorUpdate = useCallback(async ({ chapterId: targetChapterId, html, wordCount }) => {
     const chapterIdToSave = targetChapterId || activeChapterId;
@@ -533,14 +619,24 @@ export default function Home() {
 
   // AI 生成存档 — Editor 的 ghost text 操作会调用此函数
   const handleArchiveGeneration = useCallback((entry) => {
+    const text = typeof entry?.text === 'string' ? entry.text : '';
+    if (!text.trim()) return;
+
+    const workId = activeWorkId || getActiveWorkId() || 'work-default';
     const record = {
       id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       timestamp: Date.now(),
+      workId,
       chapterId: activeChapterId,
       ...entry,
+      text,
+      source: entry?.source || 'inline',
     };
-    useAppStore.getState().addGenerationArchive(record);
-  }, [activeChapterId]);
+    const currentArchive = useAppStore.getState().generationArchive;
+    const nextArchive = normalizeGenerationArchive([...currentArchive, record]);
+    useAppStore.getState().setGenerationArchive(nextArchive);
+    saveGenerationArchive(workId, nextArchive);
+  }, [activeChapterId, activeWorkId]);
 
 
 
@@ -587,10 +683,13 @@ export default function Home() {
               id="tour-editor"
               ref={editorRef}
               chapterId={activeChapterId}
+              workId={activeWorkId || getActiveWorkId() || 'work-default'}
               content={activeChapter.content}
               onUpdate={handleEditorUpdate}
               onAiRequest={handleInlineAiRequest}
               onArchiveGeneration={handleArchiveGeneration}
+              chapterNumberingIgnored={!!activeChapter.numberingIgnored}
+              onToggleSpecialChapter={handleToggleActiveChapterSpecial}
               contextItems={contextItems}
               contextSelection={contextSelection}
               setContextSelection={setContextSelection}
