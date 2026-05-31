@@ -216,6 +216,7 @@
     "insertPlainText": "Insert Plain Text",
     "insertPlainTextHint": "Insert into the editor as plain text",
     "copy": "Copy",
+    "archiveDeleted": "Archive deleted",
     "tokenUsage": "Token Usage",
     "searchContext": "Search items...",
     "emptyContextIcon": "",

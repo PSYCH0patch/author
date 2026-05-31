@@ -3,6 +3,7 @@
 # AI agent local config
 .gemini/
 .codex/
+.codex-remote-attachments/
 
 # dependencies
 /node_modules

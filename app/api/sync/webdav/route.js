@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const ALLOWED_ACTIONS = new Set(['get', 'put', 'delete', 'mkcol']);
+const ALLOWED_ACTIONS = new Set(['get', 'put', 'delete', 'mkcol', 'propfind']);
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+const MKCOL_OK_STATUSES = new Set([200, 201, 204, 207, 301, 302, 405]);
 
 function isLocalHost(hostname) {
     const host = String(hostname || '').toLowerCase();
@@ -51,7 +52,10 @@ function buildWebDavUrl(endpoint, inputPath, options = {}) {
         throw new Error('公网部署不允许代理访问本机或内网 WebDAV 地址');
     }
     const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-    const normalizedPath = normalizePath(inputPath);
+    let normalizedPath = normalizePath(inputPath);
+    if (options.collection && normalizedPath && !normalizedPath.endsWith('/')) {
+        normalizedPath = `${normalizedPath}/`;
+    }
     return new URL(normalizedPath, normalizedBase).toString();
 }
 
@@ -70,7 +74,11 @@ async function proxyWebDav({ action, path, body, config }, options = {}) {
         throw new Error('WebDAV 配置不完整');
     }
 
-    const url = buildWebDavUrl(endpoint, path, options);
+    const isCollectionAction = action === 'mkcol' || action === 'propfind';
+    const url = buildWebDavUrl(endpoint, path, {
+        ...options,
+        collection: isCollectionAction,
+    });
     const headers = {
         Authorization: createAuthHeader(username, password),
         'User-Agent': 'Author-WebDAV-Sync/1.0',
@@ -86,6 +94,9 @@ async function proxyWebDav({ action, path, body, config }, options = {}) {
         method = 'DELETE';
     } else if (action === 'mkcol') {
         method = 'MKCOL';
+    } else if (action === 'propfind') {
+        method = 'PROPFIND';
+        headers.Depth = '0';
     }
 
     const response = await fetch(url, {
@@ -103,12 +114,31 @@ async function proxyWebDav({ action, path, body, config }, options = {}) {
         return { ok: true, status: response.status, body: await response.text() };
     }
 
+    if (action === 'propfind') {
+        if (response.status === 404) return { ok: true, missing: true, status: 404 };
+        if ([200, 207, 301, 302].includes(response.status)) {
+            return { ok: true, status: response.status, exists: true };
+        }
+        return { ok: false, status: response.status, body: await response.text().catch(() => '') };
+    }
+
     if (action === 'mkcol') {
-        if ([201, 405, 301, 302].includes(response.status)) {
+        if (MKCOL_OK_STATUSES.has(response.status)) {
             return { ok: true, status: response.status };
         }
         if (response.status === 409) {
-            return { ok: false, status: 409, body: 'Parent collection does not exist' };
+            const exists = await fetch(url, {
+                method: 'PROPFIND',
+                headers: {
+                    ...headers,
+                    Depth: '0',
+                },
+                cache: 'no-store',
+            });
+            if ([200, 207, 301, 302].includes(exists.status)) {
+                return { ok: true, status: response.status, existed: true };
+            }
+            return { ok: false, status: 409, body: await response.text().catch(() => '') };
         }
     }
 

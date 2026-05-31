@@ -9,6 +9,7 @@ import {
     deleteMessage as deleteMsgFn, createBranch, switchVariant, replaceMessages
 } from '../lib/chat-sessions';
 import { getProjectSettings, getChatApiConfig, getActiveWorkId, getSettingsNodes, addSettingsNode, updateSettingsNode, deleteSettingsNode } from '../lib/settings';
+import { saveGenerationArchive } from '../lib/generation-archive';
 import { useAppStore } from '../store/useAppStore';
 import ChatMarkdown from './ChatMarkdown';
 import ModelPicker from './ModelPicker';
@@ -507,7 +508,7 @@ export default function AiSidebar({ onInsertText }) {
         activeChapterId,
         sessionStore, setSessionStore,
         chatStreaming, setChatStreaming,
-        generationArchive,
+        generationArchive, setGenerationArchive,
         contextItems, contextSelection, setContextSelection,
         chatSendShortcutMode,
         showToast
@@ -616,6 +617,19 @@ export default function AiSidebar({ onInsertText }) {
     const inputRef = useRef(null);
     const abortRef = useRef(null);
     const [viewingContext, setViewingContext] = useState(null); // { context, rawRequest }
+
+    const handleDeleteArchiveItem = useCallback((itemId) => {
+        const currentArchive = useAppStore.getState().generationArchive;
+        const target = currentArchive.find(item => item.id === itemId);
+        if (!target) return;
+
+        const workId = target.workId || getActiveWorkId() || 'work-default';
+        const nextArchive = currentArchive.filter(item => item.id !== itemId);
+        setGenerationArchive(nextArchive);
+        saveGenerationArchive(workId, nextArchive);
+        setExpandedArchive(prev => prev === itemId ? null : prev);
+        showToast(t('aiSidebar.archiveDeleted'), 'success');
+    }, [setGenerationArchive, showToast, t]);
 
     // 新消息时只在用户已滚动到底部时才自动滚动（不劫持用户滚动）
     useEffect(() => {
@@ -2006,6 +2020,9 @@ export default function AiSidebar({ onInsertText }) {
                                                     </button>
                                                     <button className="btn-mini" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.text); }}>
                                                         {t('aiSidebar.copy')}
+                                                    </button>
+                                                    <button className="btn-mini danger" onClick={(e) => { e.stopPropagation(); handleDeleteArchiveItem(item.id); }}>
+                                                        <Trash2 size={12} /> {t('aiSidebar.delete')}
                                                     </button>
                                                 </div>
                                             </div>

@@ -216,6 +216,7 @@
         "insertPlainText": "Вставить обычный текст",
         "insertPlainTextHint": "Вставить в редактор как обычный текст",
         "copy": "Копировать",
+        "archiveDeleted": "Архив удалён",
         "tokenUsage": "Использование токенов",
         "searchContext": "Поиск элементов...",
         "emptyContextIcon": "",

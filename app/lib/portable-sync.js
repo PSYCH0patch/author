@@ -292,15 +292,25 @@ async function webdavDelete(path, config) {
     await webdavProxy('delete', config, { path });
 }
 
+async function webdavCollectionExists(path, config) {
+    const data = await webdavProxy('propfind', config, { path });
+    return !data.missing;
+}
+
+async function ensureWebDavCollection(path, config) {
+    if (await webdavCollectionExists(path, config)) return;
+    await webdavProxy('mkcol', config, { path });
+}
+
 async function ensureWebDavReady(config) {
     assertWebDavConfig(config);
     const baseSegments = (config.basePath || '').replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
     let current = '';
     for (const segment of baseSegments) {
         current = joinDavPath(current, segment);
-        await webdavProxy('mkcol', config, { path: current });
+        await ensureWebDavCollection(current, config);
     }
-    await webdavProxy('mkcol', config, { path: joinDavPath(config.basePath, KEY_DIR) });
+    await ensureWebDavCollection(joinDavPath(config.basePath, KEY_DIR), config);
 }
 
 function createEmptyManifest() {
@@ -557,7 +567,10 @@ export async function createLanShare(minutes) {
 
 export async function importLanShare(source) {
     const raw = String(source || '').trim();
-    if (!raw) throw new Error('请填写局域网同步链接或分享码');
+    if (!raw) throw new Error('请填写局域网同步链接、分享码或同步快照');
+    if (raw.startsWith('{')) {
+        return await applySyncSnapshot(JSON.parse(raw));
+    }
     const url = /^https?:\/\//i.test(raw)
         ? raw
         : `/api/sync/lan?token=${encodeURIComponent(raw)}`;

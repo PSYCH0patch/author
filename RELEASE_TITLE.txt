@@ -1,1 +1,1 @@
-新增便携同步与移动端阅读模式 | Added portable sync and mobile reading mode controls
+完善 WebDAV 同步与 AI 存档管理 | Improved WebDAV sync and AI archive management

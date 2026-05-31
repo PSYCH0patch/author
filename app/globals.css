@@ -6226,6 +6226,12 @@ h5.chat-md-heading {
   gap: 6px;
 }
 
+.archive-actions .btn-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .archive-expanded {
   margin-top: 8px;
   min-width: 0;

@@ -101,14 +101,15 @@ export default function PortableSyncSettings() {
     };
 
     const saveSettings = async (extra = {}) => {
-        const normalized = await sync.savePortableSyncSettings(form, {
-            webdavPassword: extra.savePassword ? password : undefined,
-        });
-        setForm(normalized);
+        const secrets = {};
         if (extra.savePassword && password) {
-            setHasPassword(true);
-            setPassword('');
+            secrets.webdavPassword = password;
         }
+        const normalized = await sync.savePortableSyncSettings(form, secrets);
+        setForm(normalized);
+        const storedPassword = await sync.hasPortableSyncSecret('webdav-password');
+        setHasPassword(storedPassword);
+        if (extra.savePassword && password) setPassword('');
         return normalized;
     };
 
@@ -144,7 +145,7 @@ export default function PortableSyncSettings() {
                 ...saved,
                 webdav: {
                     ...saved.webdav,
-                    password: password || undefined,
+                    ...(password ? { password } : {}),
                 },
             });
             if (password) {
@@ -380,11 +381,11 @@ export default function PortableSyncSettings() {
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                     <div style={{ flex: 1 }}>
-                        <label style={labelStyle}>导入链接或分享码</label>
+                        <label style={labelStyle}>导入链接、分享码或同步快照</label>
                         <input
                             value={lanSource}
                             onChange={e => setLanSource(e.target.value)}
-                            placeholder="http://192.168.x.x:3000/api/sync/lan?token=..."
+                            placeholder="http://192.168.x.x:3000/api/sync/lan?token=... 或粘贴手机复制的快照"
                             style={inputStyle}
                         />
                     </div>

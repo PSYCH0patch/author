@@ -216,6 +216,7 @@
         "insertPlainText": "插入纯文本",
         "insertPlainTextHint": "以纯文本插入编辑器",
         "copy": "复制",
+        "archiveDeleted": "存档已删除",
         "tokenUsage": "Token 用量",
         "searchContext": "搜索条目…",
         "emptyContextIcon": "",

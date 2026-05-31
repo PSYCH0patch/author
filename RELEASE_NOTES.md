@@ -1,28 +1,24 @@
-## v1.2.34 — 新增便携同步与移动端阅读模式
+## v1.2.35 — 完善 WebDAV 同步与 AI 存档管理
 
 ### 中文
 
 #### 桌面端 / Web
 
-- 新增 WebDAV 同步，可在「偏好设置 → 云同步」中配置坚果云、123 云盘或自建 NAS/Nextcloud 等服务。
-- 新增局域网临时同步，可在同一 Wi-Fi 下生成分享链接，将作品、章节和设定迁移到另一台设备。
-- 同步入口统一调整为「同步方式」，未登录或未配置 Firebase 时会直接进入同步设置，不再只引导登录。
-- WebDAV 应用密码在桌面端使用 Electron 安全存储保存，网页版仅保存在本机浏览器。
-- WebDAV 服务端代理增加公网安全限制，公网部署不会代理访问 localhost 或内网地址。
-- 便携同步继续沿用隐私优先 allowlist，仅同步作品索引、章节和设定节点；AI 会话、API 配置、快照、调试信息和本地偏好保持本地私有。
-- 诊断系统增加键盘事件保护和重复初始化清理，降低异常输入事件导致的诊断报错风险。
-- README 和帮助页面已同步更新 Firebase、WebDAV、局域网同步说明。
-- 发版流程新增 preflight 检查，确保每次发版前都能发现并阅读本地 release workflow。
+- WebDAV 同步目录现在会先通过 `PROPFIND` 判断是否存在，不存在时才执行 `MKCOL`，避免目录已存在时被部分 WebDAV 服务返回 `409` 后误报失败。
+- WebDAV 目录请求统一使用尾部 `/`，兼容自建 WebDAV、坚果云、NAS、Nextcloud 等对 collection 路径更严格的服务。
+- 修复桌面端 WebDAV 密码框留空保存或测试时可能清空已保存密码的问题；留空会继续保留本机已保存密码。
+- 局域网导入支持直接粘贴同步快照 JSON，适合没有局域网直连条件时手动迁移。
+- AI 助手「存档」Tab 新增删除操作，可清理不再需要的内联生成记录；帮助页同步补充复制和删除说明。
+- WebDAV 代理继续保留私网访问限制，公网部署不会代理访问 localhost 或内网地址。
 
 #### Android 端
 
-- Android 版本更新为 `1.2.34+1234`。
-- 修复桌面端同步分割线后，移动端编辑器显示大块灰色占位的问题。
-- 移动端编辑器和专注写作页现在能正确渲染分割线等 Quill embed，并对未知 embed 使用安全文本回退。
-- 阅读模式新增「连续滚动 / 左右分页 / 上下分页」布局选项。
-- 阅读模式新增「无动画 / 滑动 / 经典 / 魔方」翻页效果，并修复滑动到一半页面消失的问题。
-- 阅读模式设置会记住字号、行距、主题、阅读方式和翻页效果。
-- 优化阅读模式分页估算和长段落拆分，减少单页内容过长导致的分页不稳定。
+- Android 版本更新为 `1.2.35+1235`。
+- 移动端新增 WebDAV 同步和局域网同步设置，支持坚果云、123 云盘和自建 WebDAV 服务。
+- 移动端 WebDAV 同步同样改为先 `PROPFIND` 后按需 `MKCOL`，目录请求统一带尾部 `/`，提升自建 WebDAV 兼容性。
+- 个人页、同步状态页和同步指示器接入 Firebase、WebDAV、局域网三种同步方式的提示和入口。
+- 修复章节重排页面使用已废弃 `onReorder` API 的 analyze 提示，改用 `onReorderItem`。
+- 新增章节重排工具测试，覆盖新旧索引转换和筛选列表下的排序行为。
 
 ---
 
@@ -30,22 +26,18 @@
 
 #### Desktop / Web
 
-- Added WebDAV sync in **Preferences → Cloud Sync**, supporting Jianguoyun, 123 Cloud Drive, and self-hosted NAS/Nextcloud-style services.
-- Added temporary LAN sync for transferring works, chapters, and lore/settings between devices on the same Wi-Fi network.
-- Unified sync entry points under “Sync methods”, so users without Firebase login/configuration are taken to sync settings instead of only being prompted to log in.
-- WebDAV app passwords are stored with Electron secure storage on desktop and remain local to the browser in web builds.
-- The WebDAV server proxy now blocks localhost and private-network targets when running from public deployments.
-- Portable sync keeps the privacy-first allowlist: only work indexes, chapters, and settings nodes sync. AI chats, API configs, snapshots, diagnostics, and local preferences remain local-only.
-- Improved diagnostics with keyboard event guards and cleanup for repeated initialization, reducing noise from malformed input events.
-- README files and the Help panel now describe Firebase, WebDAV, and LAN sync consistently.
-- Added a release preflight guard so local release workflow docs are discovered and read before future releases.
+- WebDAV sync now checks directory existence with `PROPFIND` before creating collections with `MKCOL`, preventing false failures when existing directories return `409` on stricter WebDAV services.
+- WebDAV collection requests now consistently use trailing `/` paths for better compatibility with self-hosted WebDAV, Jianguoyun, NAS, and Nextcloud-style services.
+- Fixed saved WebDAV passwords being cleared when saving or testing with an empty password field; leaving the field blank now keeps the local saved password.
+- LAN import can now accept pasted sync snapshot JSON directly, making manual transfer possible when direct LAN access is unavailable.
+- Added delete actions to the AI Assistant Archive tab so old inline generation records can be cleaned up; Help documentation now mentions copy and delete actions.
+- The WebDAV proxy still keeps private-network safeguards, so public deployments cannot proxy localhost or private-network WebDAV targets.
 
 #### Android
 
-- Android version is now `1.2.34+1234`.
-- Fixed large gray placeholders in the mobile editor after syncing divider blocks from desktop.
-- Mobile editor and focus writing pages now render divider-style Quill embeds correctly and use safe text fallbacks for unknown embeds.
-- Reading mode now supports **continuous scroll**, **horizontal pagination**, and **vertical pagination**.
-- Reading mode now supports **instant**, **slide**, **classic cover**, and **cube** page effects, and fixes the half-swipe disappearing page issue.
-- Reading mode preferences now persist font size, line height, theme, layout, and page effect.
-- Improved reading page estimation and long paragraph splitting for more stable pagination.
+- Android version is now `1.2.35+1235`.
+- Added mobile WebDAV sync and LAN sync settings, supporting Jianguoyun, 123 Cloud Drive, and self-hosted WebDAV services.
+- Mobile WebDAV sync now also uses `PROPFIND` before `MKCOL` and sends trailing `/` collection paths for better self-hosted WebDAV compatibility.
+- Profile, sync status, and sync indicator surfaces now expose Firebase, WebDAV, and LAN sync options.
+- Fixed Flutter analyze warnings from deprecated `onReorder` usage by switching chapter reorder pages to `onReorderItem`.
+- Added chapter reorder utility tests covering index conversion and filtered-list reorder behavior.
