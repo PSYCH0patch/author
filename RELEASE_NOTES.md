@@ -15,7 +15,10 @@
 
 #### Android 端
 
-- 本版本先保持移动端既有能力不变；章节概要生态能力先在桌面端打底，移动端后续跟进适配。
+- Android 版本更新为 `1.2.36+1236`。
+- 修复阅读模式在字号/行高调整后分页不铺满或切断文字的问题，改为按实际可用版面重新分页。
+- API 配置自检/拉取模型列表时会保留已有勾选状态，新发现模型会加入列表但不会自动启用。
+- 移动端“大纲”页改为读取设定集中的大纲节点，避免与章节列表展示内容重复。
 
 ---
 
@@ -34,4 +37,7 @@
 
 #### Android
 
-- Mobile behavior is unchanged in this release; the chapter synopsis ecosystem is landing on desktop first and will be adapted to mobile later.
+- Android is now version `1.2.36+1236`.
+- Fixed reading-mode pagination after font-size/line-height changes by repaginating from measured available page space instead of slicing lines.
+- API self-check/model fetching now preserves existing model selections; newly discovered models are added but not enabled automatically.
+- The mobile Outline tab now reads outline nodes from the lore/settings collection instead of duplicating chapter-list content.
