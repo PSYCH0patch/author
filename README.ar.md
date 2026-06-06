@@ -514,14 +514,14 @@ pm2 restart author
 ### 🤖 أصحاب الذكاء الاصطناعي المُرافقين (AI Companions)
 | التسمية واسم العميل (Name) | المحور الأساسي وتوصيف المهام (Role) |
 |------|------|
-| [Claude Opus 4.6](https://www.anthropic.com/) (Thinking) | مساهم وبطل رئيسي مساعد بالبرمجة — إنشاء القوام وتأسيس معمارية المشروع وكتابة الأنساق وتتبع الإصلاح والتنقيح (debugging) |
+| [ChatGPT 5.5](https://openai.com/chatgpt/) (xhigh) | النموذج الرئيسي للاستدلال والبرمجة |
+| [Claude Opus 4.6](https://www.anthropic.com/) (Thinking) | شريك في المعمارية والتنفيذ والتنقيح (debugging) |
 | [Gemini 3.1 Pro](https://deepmind.google/technologies/gemini/) (High) | فحص ومُباحثة عوالم الـ UI، تفصيل الصور واستقراء معانی స్కриншот (screenshot)، وتواتر وإعادة صياغة أهداف التصاميم (design iteration) |
 | [Gemini 3 Flash](https://deepmind.google/technologies/gemini/) | تقنية مدمجة وموكلة بخواص الاستنتاج وأداة أوتوماتيكية وعامل متصفحي مدمج |
-| [ChatGPT 5.4](https://openai.com/chatgpt/) | مساعد برمجي رئيسي |
 
 ### 🛠️ بيئة كتابة الأكواد بالذكاء الاصطناعي (AI Programming IDE)
 - [Antigravity](https://antigravity.google/) — شريك برمجي بالذكاء الاصطناعي
-- [Codex](https://openai.com/codex/) — شريك برمجي بالذكاء الاصطناعي
+- [Codex](https://openai.com/codex/) — أداة البرمجة الرئيسية بالذكاء الاصطناعي
 
 ### 🔌 أدوات ربط بروتوكول السياق للنماذج والمتحكمات الإرشادية (MCP Tools)
 - [Chrome DevTools MCP](https://developer.chrome.com/) — المُختص باختبار المتصفح للبيئات، مراقية أداء العمليات (performance analysis)، واستبطان وتحليل هيكل المُتصفحات والـ DOM

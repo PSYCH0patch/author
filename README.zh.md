@@ -590,14 +590,14 @@ Author 支持从多种格式导入设定集：**JSON / Markdown / TXT / DOCX / P
 ### 🤖 AI 伙伴
 | 名称 | 作用 |
 |------|------|
-| [Claude Opus 4.6](https://www.anthropic.com/)（Thinking） | 主力编程助手 — 架构设计、功能实现、调试 |
+| [ChatGPT 5.5](https://openai.com/chatgpt/)（xhigh） | 主力推理与编程模型 |
+| [Claude Opus 4.6](https://www.anthropic.com/)（Thinking） | 架构设计、功能实现、调试协作 |
 | [Gemini 3.1 Pro](https://deepmind.google/technologies/gemini/)（High） | UI 审查、截图分析、设计迭代 |
 | [Gemini 3 Flash](https://deepmind.google/technologies/gemini/) | 内置浏览器自动化工具 |
-| [ChatGPT 5.4](https://openai.com/chatgpt/) | 主力编程助手 |
 
 ### 🛠️ AI 编程 IDE
 - [Antigravity](https://antigravity.google/) — AI 编程伙伴
-- [Codex](https://openai.com/codex/) — AI 编程伙伴
+- [Codex](https://openai.com/codex/) — 主力 AI 编程工具
 
 ### 🔌 MCP 工具
 - [Chrome DevTools MCP](https://developer.chrome.com/) — 浏览器测试、性能分析、DOM 检查

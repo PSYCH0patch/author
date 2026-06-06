@@ -518,14 +518,14 @@ By using Author, you agree to our **Privacy Policy** and **Terms of Service**. T
 ### 🤖 AI Companions
 | Name | Role |
 |------|------|
-| [Claude Opus 4.6](https://www.anthropic.com/) (Thinking) | Primary coding assistant — architecture, implementation, debugging |
+| [ChatGPT 5.5](https://openai.com/chatgpt/) (xhigh) | Primary reasoning and coding model |
+| [Claude Opus 4.6](https://www.anthropic.com/) (Thinking) | Architecture, implementation, and debugging collaborator |
 | [Gemini 3.1 Pro](https://deepmind.google/technologies/gemini/) (High) | UI review, screenshot analysis, design iteration |
 | [Gemini 3 Flash](https://deepmind.google/technologies/gemini/) | Built-in browser automation tool |
-| [ChatGPT 5.4](https://openai.com/chatgpt/) | Primary coding assistant |
 
 ### 🛠️ AI Programming IDE
 - [Antigravity](https://antigravity.google/) — AI programming partner
-- [Codex](https://openai.com/codex/) — AI programming partner
+- [Codex](https://openai.com/codex/) — Primary AI coding tool
 
 ### 🔌 MCP Tools
 - [Chrome DevTools MCP](https://developer.chrome.com/) — Browser testing, performance analysis, DOM inspection
