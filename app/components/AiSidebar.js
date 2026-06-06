@@ -392,7 +392,12 @@ const SETTINGS_CATEGORY_ALIASES = {
     '世界': 'world', '世界观': 'world', '世界设定': 'world', '世界观设定': 'world',
     '地点': 'location', '地点设定': 'location', '场所': 'location', '场景': 'location',
     '空间': 'location', '地理': 'location',
-    '物品': 'object', '道具': 'object', '物品设定': 'object', '装备': 'object',
+    '物品': 'object', '道具': 'object', '物品设定': 'object',
+    '物品道具': 'object', '物品/道具': 'object', '物品与道具': 'object',
+    '装备': 'object', '装备设定': 'object', '装备物品': 'object',
+    '装备/物品': 'object', '装备与物品': 'object',
+    '装备道具': 'object', '装备/道具': 'object',
+    '武器': 'object', '武器装备': 'object', '器物': 'object', '法宝': 'object',
     '大纲': 'plot', '情节': 'plot', '剧情': 'plot', '故事线': 'plot', '故事': 'plot',
     '规则': 'rules', '写作规则': 'rules', '规范': 'rules',
     '自定义': 'custom', '其他': 'custom', '补充': 'custom', '补充设定': 'custom',
@@ -400,6 +405,8 @@ const SETTINGS_CATEGORY_ALIASES = {
     worlds: 'world', worldbuilding: 'world', setting: 'world', lore: 'world',
     locations: 'location', place: 'location', places: 'location', scene: 'location',
     objects: 'object', item: 'object', items: 'object', prop: 'object', props: 'object',
+    artifact: 'object', artifacts: 'object', equipment: 'object', gear: 'object',
+    weapon: 'object', weapons: 'object',
     outline: 'plot', story: 'plot', storyline: 'plot',
     rule: 'rules', writing_rules: 'rules',
 };
@@ -429,10 +436,15 @@ const SETTINGS_CATEGORY_LABEL = {
 function normalizeCategoryInput(rawCategory = '') {
     const text = String(rawCategory || '').trim();
     const lower = text.toLowerCase();
+    const lookup = normalizeLookupText(text);
+    const matched =
+        SETTINGS_CATEGORY_ALIASES[lower] ||
+        SETTINGS_CATEGORY_ALIASES[text] ||
+        SETTINGS_CATEGORY_ALIASES[lookup];
     return {
         raw: text,
-        category: SETTINGS_CATEGORY_ALIASES[lower] || SETTINGS_CATEGORY_ALIASES[text] || 'custom',
-        matchedAlias: Boolean(SETTINGS_CATEGORY_ALIASES[lower] || SETTINGS_CATEGORY_ALIASES[text]),
+        category: matched || 'custom',
+        matchedAlias: Boolean(matched),
     };
 }
 

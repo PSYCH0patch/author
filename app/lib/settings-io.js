@@ -108,6 +108,10 @@ const CATEGORY_NAME_MAP = {
     '空间/地点': 'location', '空间 / 地点': 'location', '地点': 'location', '场景': 'location', '地点设定': 'location', '空间': 'location',
     '世界观/设定': 'world', '世界观 / 设定': 'world', '世界观': 'world', '世界': 'world', '世界设定': 'world',
     '物品/道具': 'object', '物品 / 道具': 'object', '物品': 'object', '道具': 'object', '物品设定': 'object',
+    '物品道具': 'object', '物品与道具': 'object',
+    '装备': 'object', '装备设定': 'object', '装备物品': 'object', '装备/物品': 'object',
+    '装备与物品': 'object', '装备道具': 'object', '装备/道具': 'object',
+    '武器': 'object', '武器装备': 'object', '器物': 'object', '法宝': 'object',
     '大纲': 'plot', '剧情': 'plot', '剧情大纲': 'plot',
     '写作规则': 'rules', '写作': 'rules', '规则': 'rules',
 };

@@ -979,6 +979,7 @@ function getModeInstruction(mode) {
 使用规则：
 - 每个操作块只包含一个 JSON 对象
 - 如果需要多个操作，使用多个 [SETTINGS_ACTION] 块
+- 装备、武器、道具、法宝、器物等条目统一使用 category "object"，不要写成 "custom" 或 "装备物品"
 - 操作块前后必须有正常的文字说明
 - 不要用代码围栏（\`\`\`）包裹操作块，直接使用 [SETTINGS_ACTION] 标签
 - update 示例：{"action":"update","category":"character","name":"角色姓名","content":{"personality":"新性格描述"}}
