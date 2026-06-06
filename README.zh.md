@@ -81,7 +81,7 @@
 **无需安装 Node.js！** 直接下载安装包：
 
 - 📥 [下载 Author 安装包（Windows）](https://github.com/YuanShiJiLoong/author/releases/latest)
-- 📱 1.2 维护期内，Author Android 构建可能继续出现在公开 Release 页面
+- 📱 [下载 Author APK（Android）](https://github.com/YuanShiJiLoong/author/releases/latest)
 - 💬 无法访问 GitHub？[加入 QQ 交流群：1087016949](https://qm.qq.com/q/wjRDkotw0E)，群文件中下载
 
 安装即用，所有功能开箱即得。

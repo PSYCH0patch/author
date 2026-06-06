@@ -80,7 +80,7 @@ I watched the versatility of these models being gutted. I don't want us to live 
 **No Node.js required!** Download the pre-built installer:
 
 - 📥 [Download Author Setup (Windows)](https://github.com/YuanShiJiLoong/author/releases/latest)
-- 📱 Author 1.2 Android builds may appear on the public release page during the 1.2 maintenance period.
+- 📱 [Download Author APK (Android)](https://github.com/YuanShiJiLoong/author/releases/latest)
 
 Just install and start writing. All features work out of the box.
 
