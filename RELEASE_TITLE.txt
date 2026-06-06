@@ -1,1 +1,1 @@
-完善移动端章节概要中心与夜间模式 | Mobile synopsis center and dark mode polish
+修正装备类设定归类与开源边界 | Equipment category mapping and open-core boundary
