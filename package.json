@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:open-core-boundary": "git ls-files -z | node scripts/check-open-core-boundary.js --stdin",
     "electron:dev": "npm run dev & npx electron . --dev",
     "electron:build": "node -e \"const fs=require('fs');['dist','.next'].forEach(d=>{if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true})}})\" && npx next build && npx electron-builder --win",
     "electron:start": "npx electron ."

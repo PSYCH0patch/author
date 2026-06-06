@@ -70,6 +70,12 @@ mcp_config.json
 /mobile_ios
 *.dart
 
+# closed-source product workspaces (private repos — NEVER commit here)
+/author-pro
+/reader
+/reader-mobile
+/reader-cloud
+
 # mobile UI mockups & design artifacts (private)
 home_screen.html
 stitch*

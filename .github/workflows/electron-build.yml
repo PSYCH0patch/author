@@ -1,7 +1,7 @@
 # ============================================
 #  自动构建 Electron 安装包并发布 Release
 # ============================================
-#  触发条件: 推送 v* 标签
+#  触发条件: 推送 v1.2.* 标签
 #  需要在 GitHub Secrets 中配置:
 #    - NEXT_PUBLIC_FIREBASE_API_KEY
 #    - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
@@ -20,7 +20,7 @@ env:
 on:
   push:
     tags:
-      - 'v*'
+      - 'v1.2.*'
   workflow_dispatch:
 
 permissions:

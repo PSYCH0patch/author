@@ -81,10 +81,12 @@
 **无需安装 Node.js！** 直接下载安装包：
 
 - 📥 [下载 Author 安装包（Windows）](https://github.com/YuanShiJiLoong/author/releases/latest)
-- 📱 [下载 Author APK（Android）](https://github.com/YuanShiJiLoong/author/releases/latest) — 首个 Android 版本！
+- 📱 1.2 维护期内，Author Android 构建可能继续出现在公开 Release 页面
 - 💬 无法访问 GitHub？[加入 QQ 交流群：1087016949](https://qm.qq.com/q/wjRDkotw0E)，群文件中下载
 
 安装即用，所有功能开箱即得。
+
+> Author 1.3+、Author Pro、Reader 与 Reader Mobile 属于独立商业产品线，不从本开源仓库分发。
 
 > 💡 从源码构建桌面应用：`npm run build && npx electron-builder --win`
 
@@ -558,6 +560,8 @@ Author 支持从多种格式导入设定集：**JSON / Markdown / TXT / DOCX / P
 - ⚠️ 修改后的版本（包括基于此搭建的网络服务）必须同样以 AGPL-3.0 开源
 - ⚠️ 必须保留原始版权声明
 - ❌ 不可闭源后用于商业用途
+
+本仓库是 Author 1.2.x 开源核心。公开/闭源产品边界与发版规则见 [Author Open Core Boundary](OPEN_CORE_BOUNDARY.md)。
 
 ---
 

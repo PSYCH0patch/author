@@ -80,9 +80,11 @@ I watched the versatility of these models being gutted. I don't want us to live 
 **No Node.js required!** Download the pre-built installer:
 
 - 📥 [Download Author Setup (Windows)](https://github.com/YuanShiJiLoong/author/releases/latest)
-- 📱 [Download Author APK (Android)](https://github.com/YuanShiJiLoong/author/releases/latest) — first Android release!
+- 📱 Author 1.2 Android builds may appear on the public release page during the 1.2 maintenance period.
 
 Just install and start writing. All features work out of the box.
+
+> Author 1.3+, Author Pro, Reader, and Reader Mobile are separate commercial product lines and are not distributed from this open-source repository.
 
 > 💡 To build the desktop app from source: `npm run build && npx electron-builder --win`
 
@@ -493,6 +495,8 @@ This project is licensed under [AGPL-3.0](LICENSE).
 - ⚠️ Modified versions must also be open-sourced under AGPL-3.0 (including network services / SaaS)
 - ⚠️ Original copyright notice must be preserved
 - ❌ Closed-source commercial use is NOT allowed
+
+This repository is the Author 1.2.x open core. See [Author Open Core Boundary](OPEN_CORE_BOUNDARY.md) for the public/private product boundary and release rules.
 
 ---
 

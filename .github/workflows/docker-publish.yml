@@ -1,7 +1,7 @@
 # ============================================
 #  自动构建并发布 Docker 镜像到 Docker Hub
 # ============================================
-#  触发条件: 推送 v* 标签或手动触发
+#  触发条件: 推送 v1.2.* 标签或手动触发
 #  需要在 GitHub Secrets 中配置:
 #    - DOCKERHUB_USERNAME
 #    - DOCKERHUB_TOKEN
@@ -15,7 +15,7 @@ env:
 on:
   push:
     tags:
-      - 'v*'
+      - 'v1.2.*'
   workflow_dispatch:
 
 jobs:
