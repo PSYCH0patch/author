@@ -1,6 +1,6 @@
 {
   "name": "author-app",
-  "version": "1.2.38",
+  "version": "1.2.39",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -94,6 +94,8 @@
           "!dist/**/*",
           "!dist-*",
           "!dist-*/**/*",
+          "!local-clients-v*",
+          "!local-clients-v*/**/*",
           "!.git",
           "!.git/**/*",
           "!data",

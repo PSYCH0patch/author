@@ -52,6 +52,7 @@ next-env.d.ts
 # electron
 /dist
 /dist-*
+/local-clients-v*/
 /data
 /_standalone
 

@@ -629,9 +629,19 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
                     e.currentTarget._mouseDownInTiptap = !!e.target.closest('.tiptap');
                 }}
                 onClick={(e) => {
-                    // 只有 mousedown 和 mouseup 都在灰色空隙（非 tiptap 区域）时才聚焦到文末
+                    // 只有 mousedown 和 mouseup 都在灰色空隙（非 tiptap 区域）时才重新聚焦，避免强制跳到文末
                     if (!e.currentTarget._mouseDownInTiptap && e.target.closest('.editor-container') && !e.target.closest('.tiptap')) {
-                        editor?.chain().focus('end').run();
+                        const container = e.currentTarget;
+                        const previousScrollTop = container.scrollTop;
+                        try {
+                            editor?.view.dom.focus({ preventScroll: true });
+                        } catch {
+                            editor?.view.focus();
+                        }
+                        container.scrollTop = previousScrollTop;
+                        requestAnimationFrame(() => {
+                            container.scrollTop = previousScrollTop;
+                        });
                     }
                 }}
             >

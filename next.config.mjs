@@ -21,7 +21,9 @@ const nextConfig = {
       'build/**/*',
       'dist/**/*',
       'dist-*',
-      'dist-*/**/*'
+      'dist-*/**/*',
+      'local-clients-v*',
+      'local-clients-v*/**/*'
     ],
   },
   outputFileTracingIncludes: {

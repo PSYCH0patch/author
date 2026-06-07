@@ -1,1 +1,1 @@
-修正装备类设定归类与开源边界 | Equipment category mapping and open-core boundary
+修复编辑器空白点击与移动端模型选择 | Editor outside-click and mobile model selector fixes
