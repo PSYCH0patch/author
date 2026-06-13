@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../lib/useI18n';
-import { getSettingsNodes, updateSettingsNode, deleteSettingsNode, saveSettingsNodes, getActiveWorkId, setActiveWorkId as setActiveWorkIdSetting, getAllWorks, getChatApiConfig, addWork, removeWork, addSettingsNode, renameWork } from '../lib/settings';
+import { getSettingsNodes, updateSettingsNode, deleteSettingsNode, saveSettingsNodes, getActiveWorkId, setActiveWorkId as setActiveWorkIdSetting, getAllWorks, getChatApiConfig, addWork, removeWork, addSettingsNode, renameWork, normalizeBookInfoGoals } from '../lib/settings';
 import { getChapters } from '../lib/storage';
 import { createPortal } from 'react-dom';
 import { promptInput } from '../lib/promptInput';
@@ -457,6 +457,9 @@ export default function BookInfoPanel() {
     const [aiEvalLoading, setAiEvalLoading] = useState(false);
     const skipWorksReloadRef = useRef(false); // 防止标题编辑触发 useEffect 重载
 
+    const safeWorks = useMemo(() => Array.isArray(works) ? works : [], [works]);
+    const safeGoals = useMemo(() => Array.isArray(goals) ? goals : normalizeBookInfoGoals(goals), [goals]);
+
     // 检查是否跳过删除确认（与 SettingsPanel 共用同一套 localStorage Key）
     const shouldSkipDeleteConfirm = () => {
         try {
@@ -515,9 +518,10 @@ export default function BookInfoPanel() {
         if (!showBookInfo) return;
         (async () => {
             const allWorks = await getAllWorks();
-            setWorks(allWorks);
+            const normalizedWorks = Array.isArray(allWorks) ? allWorks : [];
+            setWorks(normalizedWorks);
             const activeId = getActiveWorkId();
-            setSelectedWorkId(activeId || (allWorks[0]?.id ?? null));
+            setSelectedWorkId(activeId || (normalizedWorks[0]?.id ?? null));
         })();
     }, [showBookInfo]);
 
@@ -538,7 +542,7 @@ export default function BookInfoPanel() {
             const biNode = allNodes.find(n => n.category === 'bookInfo' && n.type === 'special');
             setBookInfoNode(biNode || null);
             const rawData = biNode?.content || {};
-            const work = works.find(w => w.id === selectedWorkId);
+            const work = safeWorks.find(w => w.id === selectedWorkId);
             const data = {
                 ...rawData,
                 title: rawData.title || work?.name || '',
@@ -549,10 +553,10 @@ export default function BookInfoPanel() {
                 renameWork(selectedWorkId, infoTitle);
             }
             setBookData(data);
-            setGoals(data.goals || []);
+            setGoals(normalizeBookInfoGoals(data.goals));
             setWorkName(work?.name || '');
         })();
-    }, [showBookInfo, selectedWorkId, works, settingsVersion]);
+    }, [showBookInfo, selectedWorkId, safeWorks, settingsVersion]);
 
     // 选中查看（不切换全局）
     const handleSelectWork = (workId) => {
@@ -793,7 +797,7 @@ export default function BookInfoPanel() {
                             ><Plus size={12} /></button>
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
-                            {works.map(w => {
+                            {safeWorks.map(w => {
                                 const isViewing = w.id === selectedWorkId;
                                 const isGlobalActive = w.id === globalActiveWorkId;
                                 return (
@@ -1329,13 +1333,13 @@ export default function BookInfoPanel() {
                                     创作目标
                                 </h4>
                                 {/* 添加目标 */}
-                                <div style={{ display: 'flex', gap: 6, marginBottom: goals.length > 0 ? 10 : 0 }}>
+                                <div style={{ display: 'flex', gap: 6, marginBottom: safeGoals.length > 0 ? 10 : 0 }}>
                                     <input
                                         value={newGoalText}
                                         onChange={e => setNewGoalText(e.target.value)}
                                         onKeyDown={e => {
                                             if (e.key === 'Enter' && newGoalText.trim()) {
-                                                const next = [...goals, { id: Date.now().toString(), text: newGoalText.trim(), done: false }];
+                                                const next = [...safeGoals, { id: Date.now().toString(), text: newGoalText.trim(), done: false }];
                                                 setGoals(next);
                                                 setNewGoalText('');
                                                 if (bookInfoNode) {
@@ -1357,7 +1361,7 @@ export default function BookInfoPanel() {
                                     <button
                                         onClick={() => {
                                             if (!newGoalText.trim()) return;
-                                            const next = [...goals, { id: Date.now().toString(), text: newGoalText.trim(), done: false }];
+                                            const next = [...safeGoals, { id: Date.now().toString(), text: newGoalText.trim(), done: false }];
                                             setGoals(next);
                                             setNewGoalText('');
                                             if (bookInfoNode) {
@@ -1379,11 +1383,11 @@ export default function BookInfoPanel() {
                                     </button>
                                 </div>
                                 {/* 目标列表 */}
-                                {goals.length === 0 ? (
+                                {safeGoals.length === 0 ? (
                                     <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0', margin: 0 }}>设定你的创作目标…</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, overflowY: 'auto' }}>
-                                        {goals.map(goal => (
+                                        {safeGoals.map(goal => (
                                             <div key={goal.id} style={{
                                                 display: 'flex', alignItems: 'center', gap: 8,
                                                 padding: '6px 8px', borderRadius: 8,
@@ -1393,7 +1397,7 @@ export default function BookInfoPanel() {
                                                 onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                                 onClick={() => {
-                                                    const next = goals.map(g => g.id === goal.id ? { ...g, done: !g.done } : g);
+                                                    const next = safeGoals.map(g => g.id === goal.id ? { ...g, done: !g.done } : g);
                                                     setGoals(next);
                                                     if (bookInfoNode) {
                                                         const updated = { ...bookData, goals: next };
@@ -1423,7 +1427,7 @@ export default function BookInfoPanel() {
                                                 <button
                                                     onClick={e => {
                                                         e.stopPropagation();
-                                                        const next = goals.filter(g => g.id !== goal.id);
+                                                        const next = safeGoals.filter(g => g.id !== goal.id);
                                                         setGoals(next);
                                                         if (bookInfoNode) {
                                                             const updated = { ...bookData, goals: next };

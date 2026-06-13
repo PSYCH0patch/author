@@ -1,1 +1,1 @@
-修复编辑器、AI 助手与 WebDAV 双端同步 | Editor, AI assistant, and WebDAV sync fixes
+修复作品信息切换崩溃与大纲曲线兼容 | Book info switching crash and plot curve compatibility fixes

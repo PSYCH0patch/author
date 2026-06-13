@@ -88,9 +88,32 @@ const DEFAULT_PLOT_POINTS = [
     { label: '结局', tension: 0.4, note: '' },
 ];
 
+function normalizePlotCurvePoint(point, index) {
+    const fallback = DEFAULT_PLOT_POINTS[index] || { label: `节点${index + 1}`, tension: 0.5, note: '' };
+    if (typeof point === 'string') {
+        const label = point.trim();
+        return { ...fallback, label: label || fallback.label };
+    }
+    if (!point || typeof point !== 'object' || Array.isArray(point)) {
+        return { ...fallback };
+    }
+
+    const tension = Number(point.tension);
+    return {
+        label: typeof point.label === 'string' && point.label.trim() ? point.label.trim() : fallback.label,
+        tension: Number.isFinite(tension) ? Math.max(0, Math.min(1, tension)) : fallback.tension,
+        note: typeof point.note === 'string' ? point.note.trim() : '',
+    };
+}
+
+function normalizePlotCurvePoints(value) {
+    const source = Array.isArray(value) && value.length > 0 ? value : DEFAULT_PLOT_POINTS;
+    const points = source.map(normalizePlotCurvePoint);
+    return points.length >= 2 ? points : DEFAULT_PLOT_POINTS.map(normalizePlotCurvePoint);
+}
+
 function PlotCurveChart({ nodes, rootFolder, onSave }) {
-    const initData = (rootFolder?.content?.plotCurve || DEFAULT_PLOT_POINTS).map(p => ({ note: '', ...p }));
-    const [points, setPoints] = useState(initData);
+    const [points, setPoints] = useState(() => normalizePlotCurvePoints(rootFolder?.content?.plotCurve));
     const [dragging, setDragging] = useState(null); // index for tension drag
     const [editIdx, setEditIdx] = useState(null); // label rename
     const [editLabel, setEditLabel] = useState('');
@@ -105,8 +128,7 @@ function PlotCurveChart({ nodes, rootFolder, onSave }) {
     const chartW = W - PX * 2;
 
     useEffect(() => {
-        const d = rootFolder?.content?.plotCurve;
-        if (d && Array.isArray(d)) setPoints(d.map(p => ({ note: '', ...p })));
+        setPoints(normalizePlotCurvePoints(rootFolder?.content?.plotCurve));
     }, [rootFolder?.content?.plotCurve]);
 
     const coords = useMemo(() => points.map((p, i) => ({

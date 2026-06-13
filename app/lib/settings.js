@@ -40,6 +40,113 @@ function collapseIndexedContent(values) {
     return texts.every(text => text.length <= 1) ? texts.join('') : texts.join('\n');
 }
 
+function normalizePlotCurveStoragePoint(point, index) {
+    if (typeof point === 'string') {
+        const label = point.trim();
+        return label ? { label, tension: 0.5, note: '' } : null;
+    }
+    if (!point || typeof point !== 'object' || Array.isArray(point)) return null;
+
+    const tension = Number(point.tension);
+    return {
+        label: typeof point.label === 'string' && point.label.trim() ? point.label.trim() : `节点${index + 1}`,
+        tension: Number.isFinite(tension) ? Math.max(0, Math.min(1, tension)) : 0.5,
+        note: typeof point.note === 'string' ? point.note.trim() : '',
+    };
+}
+
+function normalizePlotCurveStorageValue(value) {
+    if (!Array.isArray(value)) return null;
+    const points = value
+        .map(normalizePlotCurveStoragePoint)
+        .filter(Boolean);
+    return points.length >= 2 ? points : null;
+}
+
+function makeLegacyGoalId(text, index) {
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+    }
+    return `legacy-goal-${index}-${Math.abs(hash).toString(36)}`;
+}
+
+function normalizeBookInfoGoal(goal, index) {
+    if (typeof goal === 'string') {
+        const text = goal.trim();
+        return text ? { id: makeLegacyGoalId(text, index), text, done: false } : null;
+    }
+    if (!goal || typeof goal !== 'object' || Array.isArray(goal)) return null;
+
+    const textValue = goal.text ?? goal.title ?? goal.name ?? goal.label ?? '';
+    const text = stringifySettingValue(textValue).trim();
+    if (!text) return null;
+
+    return {
+        id: typeof goal.id === 'string' && goal.id.trim() ? goal.id : makeLegacyGoalId(text, index),
+        text,
+        done: Boolean(goal.done ?? goal.completed ?? goal.checked),
+    };
+}
+
+export function normalizeBookInfoGoals(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map(normalizeBookInfoGoal)
+            .filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        const text = value.trim();
+        if (!text) return [];
+        try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) return normalizeBookInfoGoals(parsed);
+        } catch { }
+
+        const textLines = text
+            .split(/\r?\n/)
+            .map(line => line.match(/^\s*text:\s*(.+)$/i)?.[1]?.trim())
+            .filter(Boolean);
+        const lines = textLines.length > 0 ? textLines : text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        return lines
+            .map(normalizeBookInfoGoal)
+            .filter(Boolean);
+    }
+
+    if (value && typeof value === 'object') {
+        if (Array.isArray(value.goals)) return normalizeBookInfoGoals(value.goals);
+        if (Array.isArray(value.items)) return normalizeBookInfoGoals(value.items);
+        return Object.values(value)
+            .map(normalizeBookInfoGoal)
+            .filter(Boolean);
+    }
+
+    return [];
+}
+
+function normalizeWorkEntry(work, index) {
+    if (!work || typeof work !== 'object' || Array.isArray(work)) return null;
+    const id = typeof work.id === 'string' && work.id.trim() ? work.id : '';
+    if (!id) return null;
+    const name = typeof work.name === 'string' && work.name.trim() ? work.name : `作品 ${index + 1}`;
+    return {
+        ...work,
+        id,
+        name,
+        type: 'work',
+        category: 'work',
+        order: Number.isFinite(Number(work.order)) ? Number(work.order) : index,
+    };
+}
+
+function normalizeWorksIndex(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(normalizeWorkEntry)
+        .filter(Boolean);
+}
+
 function normalizeSettingsContent(content, category) {
     const fallbackKey = getFallbackContentKey(category);
     if (content === null || content === undefined) return {};
@@ -65,6 +172,17 @@ function normalizeSettingsContent(content, category) {
 
         if (key === 'stats' || key.startsWith('_')) {
             normalized[key] = value;
+            continue;
+        }
+
+        if (category === 'plot' && key === 'plotCurve') {
+            const plotCurve = normalizePlotCurveStorageValue(value);
+            if (plotCurve) normalized.plotCurve = plotCurve;
+            continue;
+        }
+
+        if (category === 'bookInfo' && key === 'goals') {
+            normalized.goals = normalizeBookInfoGoals(value);
             continue;
         }
 
@@ -815,19 +933,24 @@ export function setActiveWorkId(workId) {
  * @param {Array|null} nodes - 如果已有节点数组，直接从中提取；否则从索引读取
  */
 export async function getAllWorks(nodes) {
-    if (nodes) return nodes.filter(n => n.type === 'work');
+    if (nodes) return normalizeWorksIndex(Array.isArray(nodes) ? nodes.filter(n => n?.type === 'work') : []);
     if (typeof window === 'undefined') return [];
     // 确保迁移已完成
     await migrateGlobalToPerWork();
     const index = await persistGet(WORKS_INDEX_KEY);
-    return Array.isArray(index) ? index : [];
+    const works = normalizeWorksIndex(index);
+    if (Array.isArray(index) && works.length !== index.length) {
+        await saveWorksIndex(works);
+    }
+    return works;
 }
 
 /** 保存作品索引（仅 work 节点的轻量信息） */
 async function saveWorksIndex(workEntries) {
     if (typeof window === 'undefined') return;
+    const safeEntries = normalizeWorksIndex(workEntries);
     // 只保留必要字段
-    const slim = workEntries.map(w => ({
+    const slim = safeEntries.map(w => ({
         id: w.id, name: w.name, type: 'work', category: 'work',
         icon: w.icon || '', order: w.order ?? 0,
         createdAt: w.createdAt, updatedAt: w.updatedAt,
