@@ -13,9 +13,10 @@ import { saveGenerationArchive } from '../lib/generation-archive';
 import { useAppStore } from '../store/useAppStore';
 import ChatMarkdown from './ChatMarkdown';
 import ModelPicker from './ModelPicker';
-import { FolderOpen, Plus, X, Pencil, Trash2, RefreshCw, GitBranch, CornerDownLeft, ClipboardList, Copy, Code2, FileText, Maximize2, Minimize2 } from 'lucide-react';
+import { FolderOpen, Plus, X, Pencil, Trash2, RefreshCw, GitBranch, CornerDownLeft, ClipboardList, Copy, Code2, FileText, Maximize2, Minimize2, Sparkles } from 'lucide-react';
 import { useI18n } from '../lib/useI18n';
 import { copyTextToClipboard } from '../lib/clipboard';
+import { resolveAiEndpoint } from '../lib/ai-provider-compat';
 
 const INLINE_THINK_OPEN = '<think>';
 const INLINE_THINK_CLOSE = '</think>';
@@ -651,6 +652,63 @@ function resolveActionParent(nodes, action, workId, category, rawCategory) {
     return candidates.find(node => node.parentId === workId && node.category === 'custom') || null;
 }
 
+function getSettingsGenerationTargets(nodes, workId) {
+    const folders = nodes.filter(node => node.type === 'folder' && isNodeInWork(nodes, node, workId));
+    const childrenByParent = new Map();
+    folders.forEach(node => {
+        const siblings = childrenByParent.get(node.parentId) || [];
+        siblings.push(node);
+        childrenByParent.set(node.parentId, siblings);
+    });
+    childrenByParent.forEach(children => children.sort((a, b) =>
+        (a.order || 0) - (b.order || 0) || String(a.name || '').localeCompare(String(b.name || ''))
+    ));
+
+    const targets = [];
+    const visited = new Set();
+    const appendBranch = (node, depth, parentPath = []) => {
+        if (!node || visited.has(node.id)) return;
+        visited.add(node.id);
+        const pathParts = [...parentPath, node.name || node.id];
+        targets.push({
+            id: node.id,
+            name: node.name || node.id,
+            category: node.category || 'custom',
+            depth,
+            path: pathParts.join(' / '),
+        });
+        (childrenByParent.get(node.id) || []).forEach(child => appendBranch(child, depth + 1, pathParts));
+    };
+
+    (childrenByParent.get(workId) || []).forEach(node => appendBranch(node, 0));
+    folders.filter(node => !visited.has(node.id)).forEach(node => appendBranch(node, 0));
+    return targets;
+}
+
+function buildSettingsGenerationRequest(userPrompt, targets, tx) {
+    const targetData = targets.map(target => ({
+        category: target.category,
+        parentId: target.id,
+        parentName: target.name,
+        path: target.path,
+    }));
+    const targetJson = JSON.stringify(targetData, null, 2);
+
+    if (targetData.length > 0) {
+        return tx(
+            `【生成设定模式】\n用户希望根据下面的提示创建设定卡片。\n\n用户提示：\n${userPrompt}\n\n用户选中的目标分类：\n${targetJson}\n\n必须遵守：\n1. 不要只给文字建议；必须输出可应用的 [SETTINGS_ACTION] 新增卡片。\n2. 每个目标分类至少生成一个与提示相关的设定条目；若提示明确指定了数量或分配方式，以提示为准。\n3. 每个操作都使用 \"action\":\"add\"，并原样使用对应目标的 category、parentId、parentName 和 path，确保条目写入用户选中的分类。\n4. 一个条目一个操作块，content 必须是结构化 JSON 对象。\n5. 卡片前只需简短说明。`,
+            `[SETTINGS GENERATION MODE]\nThe user wants settings cards created from the prompt below.\n\nUser prompt:\n${userPrompt}\n\nSelected destination categories:\n${targetJson}\n\nRequirements:\n1. Do not reply with advice alone; output applicable [SETTINGS_ACTION] add cards.\n2. Create at least one relevant settings entry for every selected destination unless the prompt explicitly specifies a different count or distribution.\n3. Use \"action\":\"add\" and copy the destination's category, parentId, parentName, and path exactly into each matching action.\n4. Use one action block per entry and a structured JSON object for content.\n5. Keep any prose before the cards brief.`,
+            `[РЕЖИМ СОЗДАНИЯ НАСТРОЕК]\nСоздай карточки настроек по запросу пользователя.\n\nЗапрос пользователя:\n${userPrompt}\n\nВыбранные категории назначения:\n${targetJson}\n\nТребования:\n1. Не ограничивайся советами; обязательно выведи применимые карточки добавления [SETTINGS_ACTION].\n2. Создай хотя бы одну подходящую запись для каждой выбранной категории, если запрос явно не задает другое количество или распределение.\n3. Используй \"action\":\"add\" и точно скопируй category, parentId, parentName и path соответствующей категории.\n4. Один блок действия на одну запись; content должен быть структурированным JSON-объектом.\n5. Текст перед карточками должен быть кратким.`
+        );
+    }
+
+    return tx(
+        `【生成设定模式】\n用户希望根据下面的提示创建设定卡片，但没有指定目标分类。\n\n用户提示：\n${userPrompt}\n\n必须遵守：\n1. 根据提示自行判断最合适的一个或多个设定分类。\n2. 不要只给文字建议；必须输出至少一个可应用的 [SETTINGS_ACTION] 新增卡片。\n3. 每个操作都使用 \"action\":\"add\"；一个条目一个操作块，content 必须是结构化 JSON 对象。\n4. 卡片前只需简短说明。`,
+        `[SETTINGS GENERATION MODE]\nThe user wants settings cards created from the prompt below and did not choose a destination category.\n\nUser prompt:\n${userPrompt}\n\nRequirements:\n1. Infer the most suitable settings category or categories.\n2. Do not reply with advice alone; output at least one applicable [SETTINGS_ACTION] add card.\n3. Use \"action\":\"add\" for every action, one action block per entry, and a structured JSON object for content.\n4. Keep any prose before the cards brief.`,
+        `[РЕЖИМ СОЗДАНИЯ НАСТРОЕК]\nСоздай карточки настроек по запросу пользователя; категория назначения не выбрана.\n\nЗапрос пользователя:\n${userPrompt}\n\nТребования:\n1. Самостоятельно выбери наиболее подходящую категорию или категории.\n2. Не ограничивайся советами; выведи хотя бы одну применимую карточку добавления [SETTINGS_ACTION].\n3. Для каждого действия используй \"action\":\"add\"; один блок на одну запись, content — структурированный JSON-объект.\n4. Текст перед карточками должен быть кратким.`
+    );
+}
+
 // ==================== AI 对话侧栏 ====================
 export default function AiSidebar({ onInsertText }) {
     const {
@@ -660,6 +718,7 @@ export default function AiSidebar({ onInsertText }) {
         chatStreaming, setChatStreaming,
         generationArchive, setGenerationArchive,
         contextItems, contextSelection, setContextSelection,
+        activeWorkId, settingsVersion, incrementSettingsVersion,
         chatSendShortcutMode,
         showToast
     } = useAppStore();
@@ -764,8 +823,13 @@ export default function AiSidebar({ onInsertText }) {
     const [showSessionList, setShowSessionList] = useState(false);
     // 设定操作卡片展开状态
     const [expandedActions, setExpandedActions] = useState(new Set());
+    // 显式的设定卡片生成模式
+    const [settingsGenerationMode, setSettingsGenerationMode] = useState(false);
+    const [settingsGenerationTargets, setSettingsGenerationTargets] = useState([]);
+    const [selectedSettingsTargetIds, setSelectedSettingsTargetIds] = useState(new Set());
+    const [settingsTargetsLoading, setSettingsTargetsLoading] = useState(false);
     // 统计刷新版本号
-    const [statsVersion, setStatsVersion] = useState(0);
+    const [, setStatsVersion] = useState(0);
     // 输入框全屏展开状态
     const [inputExpanded, setInputExpanded] = useState(false);
 
@@ -775,9 +839,50 @@ export default function AiSidebar({ onInsertText }) {
     const abortRef = useRef(null);
     const [viewingContext, setViewingContext] = useState(null); // { context, rawRequest }
 
+    useEffect(() => {
+        if (!settingsGenerationMode) return;
+        let cancelled = false;
+        const loadTargets = async () => {
+            setSettingsTargetsLoading(true);
+            const workId = activeWorkId || getActiveWorkId() || 'work-default';
+            try {
+                const nodes = await getSettingsNodes(workId);
+                if (cancelled) return;
+                const targets = getSettingsGenerationTargets(nodes, workId);
+                setSettingsGenerationTargets(targets);
+                setSelectedSettingsTargetIds(previous => {
+                    const validIds = new Set(targets.map(target => target.id));
+                    return new Set([...previous].filter(id => validIds.has(id)));
+                });
+            } catch (error) {
+                if (!cancelled) {
+                    console.error('Failed to load settings generation targets:', error);
+                    setSettingsGenerationTargets([]);
+                    const errorText = language === 'en'
+                        ? 'Failed to load settings categories'
+                        : language === 'ru' ? 'Не удалось загрузить категории настроек' : '读取设定分类失败';
+                    showToast?.(errorText, 'error');
+                }
+            } finally {
+                if (!cancelled) setSettingsTargetsLoading(false);
+            }
+        };
+        loadTargets();
+        return () => { cancelled = true; };
+    }, [settingsGenerationMode, activeWorkId, settingsVersion, showToast, language]);
+
+    useEffect(() => {
+        setSettingsGenerationMode(false);
+        setSelectedSettingsTargetIds(new Set());
+    }, [activeWorkId]);
+
     const selectedChatHistory = useMemo(() => {
         return chatHistory.filter(m => contextSelection?.has(getDialogueSelectionId(m.id)));
     }, [chatHistory, contextSelection]);
+
+    const selectedSettingsGenerationTargets = useMemo(() => {
+        return settingsGenerationTargets.filter(target => selectedSettingsTargetIds.has(target.id));
+    }, [settingsGenerationTargets, selectedSettingsTargetIds]);
 
     const handleDeleteArchiveItem = useCallback((itemId) => {
         const currentArchive = useAppStore.getState().generationArchive;
@@ -834,23 +939,23 @@ export default function AiSidebar({ onInsertText }) {
     // --- 通用 SSE 流式读取，支持 text+thinking+tools ---
     const streamResponse = useCallback(async (apiEndpoint, systemPrompt, userPrompt, apiConfig, onUpdate, onDone, signal) => {
         // 构建工具配置
-        const provider = apiConfig?.provider;
-        const isGeminiNative = ['gemini-native', 'custom-gemini'].includes(provider);
-        const isOpenAI = ['openai', 'openai-responses'].includes(provider);
+        const provider = apiConfig?.providerType || apiConfig?.provider;
+        const isOpenAI = provider === 'openai';
+        const isGeminiNative = provider === 'gemini-native';
         const searchMode = apiConfig?.tools?.searchMode || 'builtin'; // 'builtin' | 'external'
         const searchEnabled = !!apiConfig?.tools?.searchEnabled;
         let toolsPayload = undefined;
 
         if (isGeminiNative) {
-            // Gemini: 内置工具
+            // Gemini 原生内置工具：Google 搜索 grounding + 代码执行
             const gs = searchEnabled || !!apiConfig?.tools?.googleSearch;
             const ce = !!apiConfig?.tools?.codeExecution;
             if (gs || ce) toolsPayload = { googleSearch: gs, codeExecution: ce };
         } else if (searchEnabled) {
-            if (searchMode === 'builtin' && (isOpenAI || provider === 'custom')) {
-                // OpenAI 内置搜索
+            if (searchMode === 'builtin' && isOpenAI) {
+                // OpenAI 兼容端点的内置搜索
                 toolsPayload = { webSearch: true };
-            } else if (searchMode === 'external' || (!isOpenAI && provider !== 'custom')) {
+            } else if (searchMode === 'external' || !isOpenAI) {
                 // Function Calling 外部搜索 — 需要外部搜索 API Key
                 const sc = apiConfig?.searchConfig || {};
                 if (sc.apiKey) {
@@ -863,7 +968,6 @@ export default function AiSidebar({ onInsertText }) {
                 }
             }
         }
-
         const startTime = Date.now();
         const requestBody = {
             systemPrompt, userPrompt, apiConfig,
@@ -977,9 +1081,16 @@ export default function AiSidebar({ onInsertText }) {
         }
     }, []);
 
-    const onChatMessage = useCallback(async (text, selectedHistory) => {
+    const onChatMessage = useCallback(async (text, selectedHistory, options = {}) => {
         const { sessionId: targetSessionId, workId: targetWorkId } = ensureActiveSessionForWork();
-        const userMsg = { id: `msg-${Date.now()}-u`, role: 'user', content: text, timestamp: Date.now() };
+        const settingsGeneration = options.settingsGeneration || null;
+        const userMsg = {
+            id: `msg-${Date.now()}-u`,
+            role: 'user',
+            content: text,
+            timestamp: Date.now(),
+            ...(settingsGeneration ? { _settingsGeneration: settingsGeneration } : {}),
+        };
         setSessionStore(prev => addMessage(prev, userMsg));
         setChatStreaming(true);
         const aiMsgId = `msg-${Date.now()}-a`;
@@ -989,15 +1100,15 @@ export default function AiSidebar({ onInsertText }) {
         try {
             const apiConfig = getChatApiConfig();
 
-            const apiEndpoint = ['gemini-native', 'custom-gemini'].includes(apiConfig?.provider) ? '/api/ai/gemini'
-                : apiConfig?.provider === 'openai-responses' ? '/api/ai/responses'
-                    : (['claude', 'custom-claude'].includes(apiConfig?.provider) || apiConfig?.apiFormat === 'anthropic') ? '/api/ai/claude'
-                        : '/api/ai';
+            const apiEndpoint = resolveAiEndpoint(apiConfig);
 
             const context = await buildContext(activeChapterId, text, contextSelection.size > 0 ? contextSelection : null, targetWorkId, inputTokenBudget);
             const systemPrompt = compileSystemPrompt(context, 'chat');
             const historyForApi = selectedHistory.map(m => `${m.role === 'user' ? t('aiSidebar.roleYou') : t('aiSidebar.roleAi')}: ${m.content}`).join('\n');
-            const userPrompt = historyForApi ? `${historyForApi}\n${t('aiSidebar.roleYou')}: ${text}` : text;
+            const requestText = settingsGeneration
+                ? buildSettingsGenerationRequest(text, settingsGeneration.targets || [], tx)
+                : text;
+            const userPrompt = historyForApi ? `${historyForApi}\n${t('aiSidebar.roleYou')}: ${requestText}` : requestText;
 
             // 保存上下文快照（不含提示词模板和安全策略）
             const contextSnapshot = {};
@@ -1120,17 +1231,17 @@ export default function AiSidebar({ onInsertText }) {
         try {
             const apiConfig = getChatApiConfig();
 
-            const apiEndpoint = ['gemini-native', 'custom-gemini'].includes(apiConfig?.provider) ? '/api/ai/gemini'
-                : apiConfig?.provider === 'openai-responses' ? '/api/ai/responses'
-                    : (['claude', 'custom-claude'].includes(apiConfig?.provider) || apiConfig?.apiFormat === 'anthropic') ? '/api/ai/claude'
-                        : '/api/ai';
+            const apiEndpoint = resolveAiEndpoint(apiConfig);
 
             const context = await buildContext(activeChapterId, userMsg.content, contextSelection.size > 0 ? contextSelection : null, targetWorkId, inputTokenBudget);
             const systemPrompt = compileSystemPrompt(context, 'chat');
             const historyForApi = priorHistory
                 .filter(m => (m.role === 'user' || m.role === 'assistant') && contextSelection?.has(getDialogueSelectionId(m.id)))
                 .map(m => `${m.role === 'user' ? t('aiSidebar.roleYou') : t('aiSidebar.roleAi')}: ${m.content}`).join('\n');
-            const userPrompt = historyForApi ? `${historyForApi}\n${t('aiSidebar.roleYou')}: ${userMsg.content}` : userMsg.content;
+            const requestText = userMsg._settingsGeneration
+                ? buildSettingsGenerationRequest(userMsg.content, userMsg._settingsGeneration.targets || [], tx)
+                : userMsg.content;
+            const userPrompt = historyForApi ? `${historyForApi}\n${t('aiSidebar.roleYou')}: ${requestText}` : requestText;
 
             setSessionStore(prev => ({
                 ...prev, sessions: prev.sessions.map(s => {
@@ -1223,7 +1334,7 @@ export default function AiSidebar({ onInsertText }) {
             abortRef.current = null;
             setChatStreaming(false);
         }
-    }, [activeSession, sessionStore, chatHistory, chatStreaming, activeChapterId, contextSelection, inputTokenBudget, streamResponse, setSessionStore, setChatStreaming, tx]);
+    }, [activeSession, sessionStore, chatHistory, chatStreaming, activeChapterId, contextSelection, inputTokenBudget, streamResponse, setSessionStore, setChatStreaming, t, tx]);
 
     const onApplySettingsAction = useCallback(async (action, actionKey) => {
         try {
@@ -1273,6 +1384,7 @@ export default function AiSidebar({ onInsertText }) {
                     await updateSettingsNode(bookInfoNode.id, { content: nextContent }, nodes, workId);
                     showToast(tx('已更新作品信息', 'Book info updated', 'Информация о произведении обновлена'), 'success');
                 }
+                incrementSettingsVersion();
                 markApplied();
                 return;
             }
@@ -1339,22 +1451,30 @@ export default function AiSidebar({ onInsertText }) {
                 }
             }
 
+            incrementSettingsVersion();
             markApplied();
             if (action.action !== 'delete') showToast(tx('应用设定成功', 'Settings applied', 'Настройки применены'), 'success');
         } catch (err) {
             console.error('Settings action failed:', err);
             showToast(tx('应用操作失败：', 'Apply failed: ', 'Не удалось применить: ') + err.message, 'error');
         }
-    }, [activeSession, sessionStore, setSessionStore, showToast, tx]);
+    }, [activeSession, sessionStore, setSessionStore, showToast, tx, incrementSettingsVersion]);
 
     // 发送消息
     const handleSend = useCallback(() => {
         const text = inputText.trim();
         if (!text || chatStreaming) return;
 
-        onChatMessage?.(text, selectedChatHistory);
+        const options = settingsGenerationMode
+            ? { settingsGeneration: { targets: selectedSettingsGenerationTargets } }
+            : {};
+        onChatMessage?.(text, selectedChatHistory, options);
         setInputText('');
-    }, [inputText, chatStreaming, selectedChatHistory, onChatMessage]);
+        if (settingsGenerationMode) {
+            setSettingsGenerationMode(false);
+            setSelectedSettingsTargetIds(new Set());
+        }
+    }, [inputText, chatStreaming, selectedChatHistory, onChatMessage, settingsGenerationMode, selectedSettingsGenerationTargets]);
 
     const shouldSendOnKeyDown = useCallback((event) => {
         if (event.key !== 'Enter' || event.nativeEvent?.isComposing || event.isComposing) return false;
@@ -1367,7 +1487,7 @@ export default function AiSidebar({ onInsertText }) {
         const msg = chatHistory.find(m => m.id === msgId);
         if (!msg || msg.role !== 'user' || chatStreaming) return;
         const selectedHistory = chatHistory.filter(m => contextSelection?.has(getDialogueSelectionId(m.id)) && m.timestamp < msg.timestamp);
-        onChatMessage?.(msg.content, selectedHistory);
+        onChatMessage?.(msg.content, selectedHistory, msg._settingsGeneration ? { settingsGeneration: msg._settingsGeneration } : {});
     }, [chatHistory, contextSelection, chatStreaming, onChatMessage]);
 
     // 思维链折叠状态
@@ -1537,7 +1657,7 @@ export default function AiSidebar({ onInsertText }) {
             });
             return next;
         });
-    }, [groupedItems, contextSelection, setContextSelection]);
+    }, [groupedItems, setContextSelection]);
 
     const toggleCollapse = useCallback((groupName) => {
         setCollapsedGroups(prev => {
@@ -1576,7 +1696,7 @@ export default function AiSidebar({ onInsertText }) {
     const isOverBudget = totalSelectedTokens > inputTokenBudget;
 
     // Token 统计
-    const tokenStats = useMemo(() => getTokenStats(), [statsVersion]);
+    const tokenStats = getTokenStats();
 
     const tabs = [
         { key: 'chat', label: t('aiSidebar.tabChat') },
@@ -2102,14 +2222,96 @@ export default function AiSidebar({ onInsertText }) {
                         </div>
 
                         {/* 模型切换器 + 输入框 */}
-                        <div className="chat-input-area">
-                            <div style={{ display: 'flex', gap: 6, flex: 1, alignItems: 'center' }}>
-                                <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
+                        <div className={`chat-input-area chat-composer${settingsGenerationMode ? ' settings-generation-active' : ''}`}>
+                            <div className="chat-composer-toolbar">
+                                <button
+                                    type="button"
+                                    className={`settings-generation-trigger${settingsGenerationMode ? ' active' : ''}`}
+                                    onClick={() => {
+                                        setSettingsGenerationMode(current => !current);
+                                        setTimeout(() => inputRef.current?.focus(), 0);
+                                    }}
+                                    disabled={chatStreaming}
+                                    aria-pressed={settingsGenerationMode}
+                                    title={tx('让 AI 输出可直接应用的设定卡片', 'Ask AI for ready-to-apply settings cards', 'Попросить ИИ создать готовые карточки настроек')}
+                                >
+                                    <Sparkles size={14} />
+                                    <span>{tx('生成设定', 'Generate settings', 'Создать настройки')}</span>
+                                    {settingsGenerationMode && selectedSettingsGenerationTargets.length > 0 && (
+                                        <span className="settings-generation-count">{selectedSettingsGenerationTargets.length}</span>
+                                    )}
+                                </button>
+                                {settingsGenerationMode && (
+                                    <span className="settings-generation-toolbar-hint">
+                                        {tx('选择分类后描述你想要的设定', 'Choose categories, then describe what you need', 'Выберите категории и опишите нужные настройки')}
+                                    </span>
+                                )}
+                            </div>
+
+                            {settingsGenerationMode && (
+                                <div className="settings-generation-panel">
+                                    <div className="settings-generation-panel-header">
+                                        <div>
+                                            <strong>{tx('写入分类', 'Destination categories', 'Категории назначения')}</strong>
+                                            <span>{tx('可多选，也可以不选', 'Optional, multiple allowed', 'Необязательно, можно выбрать несколько')}</span>
+                                        </div>
+                                        {selectedSettingsGenerationTargets.length > 0 && (
+                                            <button type="button" onClick={() => setSelectedSettingsTargetIds(new Set())}>
+                                                {tx('清空选择', 'Clear', 'Очистить')}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="settings-generation-target-list">
+                                        {settingsTargetsLoading ? (
+                                            <div className="settings-generation-empty">{tx('正在读取分类…', 'Loading categories…', 'Загрузка категорий…')}</div>
+                                        ) : settingsGenerationTargets.length === 0 ? (
+                                            <div className="settings-generation-empty">
+                                                {tx('暂无可选分类，仍可直接输入提示词生成', 'No categories found. You can still generate from a prompt.', 'Категории не найдены. Можно создать настройки только по запросу.')}
+                                            </div>
+                                        ) : settingsGenerationTargets.map(target => (
+                                            <label
+                                                key={target.id}
+                                                className={`settings-generation-target${selectedSettingsTargetIds.has(target.id) ? ' selected' : ''}`}
+                                                style={{ '--settings-target-depth': target.depth }}
+                                                title={target.path}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedSettingsTargetIds.has(target.id)}
+                                                    onChange={() => setSelectedSettingsTargetIds(previous => {
+                                                        const next = new Set(previous);
+                                                        if (next.has(target.id)) next.delete(target.id);
+                                                        else next.add(target.id);
+                                                        return next;
+                                                    })}
+                                                />
+                                                <FolderOpen size={14} />
+                                                <span className="settings-generation-target-name">{target.name}</span>
+                                                <span className="settings-generation-target-level">
+                                                    {target.depth === 0
+                                                        ? tx('大分类', 'Category', 'Категория')
+                                                        : tx('小分类', 'Subcategory', 'Подкатегория')}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <div className="settings-generation-panel-hint">
+                                        {selectedSettingsGenerationTargets.length > 0
+                                            ? tx(`已选择 ${selectedSettingsGenerationTargets.length} 个分类，AI 会为这些分类生成可应用卡片。`, `${selectedSettingsGenerationTargets.length} selected. AI will create ready-to-apply cards for them.`, `Выбрано: ${selectedSettingsGenerationTargets.length}. ИИ создаст готовые карточки для этих категорий.`)
+                                            : tx('不选分类时，AI 会根据提示词自行判断分类并生成卡片。', 'With no selection, AI will infer the categories from your prompt.', 'Без выбора ИИ сам определит категории по вашему запросу.')}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="chat-composer-row">
+                                <div className="chat-composer-input-wrap">
                                     <textarea
                                         ref={inputRef}
                                         className="chat-input"
                                         style={{ paddingRight: 32 }}
-                                        placeholder={chatInputPlaceholder}
+                                        placeholder={settingsGenerationMode
+                                            ? tx('描述要创建的设定，例如：设计三位立场不同的核心角色…', 'Describe the settings to create, e.g. three core characters with conflicting goals…', 'Опишите настройки, например: три главных героя с разными целями…')
+                                            : chatInputPlaceholder}
                                         value={inputText}
                                         onChange={e => setInputText(e.target.value)}
                                         onKeyDown={e => {
@@ -2144,11 +2346,14 @@ export default function AiSidebar({ onInsertText }) {
                                     </button>
                                 ) : (
                                     <button
-                                        className="chat-send-btn"
+                                        className={`chat-send-btn${settingsGenerationMode ? ' settings-generation-send' : ''}`}
                                         onClick={handleSend}
                                         disabled={!inputText.trim()}
+                                        title={settingsGenerationMode
+                                            ? tx('生成设定卡片', 'Generate settings cards', 'Создать карточки настроек')
+                                            : t('aiSidebar.sendRequest')}
                                     >
-                                        ↑
+                                        {settingsGenerationMode ? <Sparkles size={17} /> : '↑'}
                                     </button>
                                 )}
                             </div>
@@ -2588,7 +2793,10 @@ export default function AiSidebar({ onInsertText }) {
                         }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Maximize2 size={18} /> {t('aiSidebar.expandInputTitle') || '全屏输入'}
+                                    {settingsGenerationMode ? <Sparkles size={18} /> : <Maximize2 size={18} />}
+                                    {settingsGenerationMode
+                                        ? tx('生成设定提示词', 'Settings generation prompt', 'Запрос для создания настроек')
+                                        : (t('aiSidebar.expandInputTitle') || '全屏输入')}
                                 </div>
                                 <button onClick={() => setInputExpanded(false)} style={{
                                     background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex'
@@ -2597,7 +2805,9 @@ export default function AiSidebar({ onInsertText }) {
                             <textarea
                                 className="chat-input"
                                 style={{ flex: 1, resize: 'none', fontSize: 'var(--ui-font-size)', padding: 12 }}
-                                placeholder={chatInputPlaceholder}
+                                placeholder={settingsGenerationMode
+                                    ? tx('描述要创建的设定…', 'Describe the settings to create…', 'Опишите настройки, которые нужно создать…')
+                                    : chatInputPlaceholder}
                                 value={inputText}
                                 onChange={e => setInputText(e.target.value)}
                                 onKeyDown={e => {
@@ -2620,7 +2830,9 @@ export default function AiSidebar({ onInsertText }) {
                                             handleSend();
                                             setInputExpanded(false);
                                         }}
-                                    >{t('aiSidebar.sendRequest')}</button>
+                                    >{settingsGenerationMode
+                                        ? tx('生成设定卡片', 'Generate settings cards', 'Создать карточки настроек')
+                                        : t('aiSidebar.sendRequest')}</button>
                                 </div>
                             </div>
                         </div>

@@ -72,6 +72,12 @@ const store = create((set, get) => ({
         if (typeof window !== 'undefined') localStorage.setItem('author-sidebar-push', String(push));
         return { sidebarPushMode: push };
     }),
+    // --- Current Line Highlight (当前段落高亮 + 失焦假光标) ---
+    currentLineHighlight: false,
+    setCurrentLineHighlight: (on) => set(() => {
+        if (typeof window !== 'undefined') localStorage.setItem('author-current-line-highlight', String(on));
+        return { currentLineHighlight: !!on };
+    }),
     aiSidebarPushMode: true,
     setAiSidebarPushMode: (push) => set(() => {
         if (typeof window !== 'undefined') localStorage.setItem('author-ai-sidebar-push', String(push));
@@ -102,12 +108,14 @@ const store = create((set, get) => ({
         const sp = localStorage.getItem('author-sidebar-push');
         const ap = localStorage.getItem('author-ai-sidebar-push');
         const chatSendShortcut = localStorage.getItem('author-chat-send-shortcut');
+        const clh = localStorage.getItem('author-current-line-highlight');
         const uiFontSize = readStoredUiFontSize();
         const writingFontFamily = readStoredWritingFontFamily();
         const updates = {};
         if (sp !== null) updates.sidebarPushMode = sp === 'true';
         if (ap !== null) updates.aiSidebarPushMode = ap === 'true';
         if (chatSendShortcut !== null) updates.chatSendShortcutMode = chatSendShortcut === 'ctrlEnter' ? 'ctrlEnter' : 'enter';
+        if (clh !== null) updates.currentLineHighlight = clh === 'true';
         updates.uiFontSize = uiFontSize;
         updates.writingFontFamily = writingFontFamily;
         applyUiFontSize(uiFontSize);

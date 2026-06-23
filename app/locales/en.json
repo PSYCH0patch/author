@@ -549,8 +549,8 @@
     "saveProfileBtn": "Save Current Config",
     "saveProfilePlaceholder": "Profile name",
     "saveBtn": "Save",
-    "howToGetKey": "How to get an API Key?",
-    "keyGuide": "• ZhipuAI: Visit open.bigmodel.cn to register and create a key\n• DeepSeek: Visit platform.deepseek.com\n• Google Gemini: Visit aistudio.google.com/apikey for a free key\n• SiliconFlow: Visit siliconflow.cn (credits for new users)\n• Moonshot: Visit platform.moonshot.cn",
+    "howToGetKey": "How to configure an API?",
+    "keyGuide": "• ZhipuAI: Visit open.bigmodel.cn to register and create a key\n• DeepSeek: Visit platform.deepseek.com\n• International-compatible endpoints: enter an authorized relay or self-hosted URL; no official direct foreign-provider URL is built in\n• SiliconFlow: Visit siliconflow.cn (credits for new users)\n• Moonshot: Visit platform.moonshot.cn",
     "networkError": "Network connection failed",
     "fetchModelsFailed": "Failed to fetch model list",
     "fetchEmbedModelsFailed": "Failed to fetch embedding model list",
@@ -629,7 +629,13 @@
     "chatSendEnterDesc": "Enter sends the message; Shift + Enter inserts a newline",
     "chatSendCtrlEnter": "Ctrl / ⌘ + Enter sends",
     "chatSendCtrlEnterDesc": "Enter inserts a newline; Ctrl / ⌘ + Enter sends the message",
-    "chatSendShortcutHint": "This applies to both the compact AI chat box and the expanded input."
+    "chatSendShortcutHint": "This applies to both the compact AI chat box and the expanded input.",
+    "currentLineHighlightLabel": "Current Paragraph Highlight",
+    "currentLineHighlightOn": "Enabled",
+    "currentLineHighlightOnDesc": "Tint the current paragraph; show a caret when focus is lost",
+    "currentLineHighlightOff": "Disabled",
+    "currentLineHighlightOffDesc": "No paragraph tint or caret",
+    "currentLineHighlightHint": "A faint background marks the paragraph you're editing, and a thin caret shows where you left off after the editor loses focus."
   },
   "bookInfo": {
     "intro": "This information helps AI understand your work's direction and style. Even filling in just one or two fields will significantly improve AI quality.",

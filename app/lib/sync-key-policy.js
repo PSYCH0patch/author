@@ -39,6 +39,8 @@ const LOCAL_ONLY_EXACT_KEYS = new Set([
     'author-sync-settings',
     'author-theme',
     'author-token-stats',
+    'author-tts-local-config-v1',
+    'author-tts-rate',
     'author-update-dismissed',
     'author-visual',
     'author-writing-daily-goals',
@@ -54,6 +56,8 @@ const LOCAL_ONLY_PREFIXES = [
     'author-inspirations-',
     'author-revision-history-',
     'author-timeline-events-',
+    'author-tts-session-secret-',
+    'author-tts-voice-',
 ];
 
 export function isSyncableKey(key) {

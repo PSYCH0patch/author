@@ -1,6 +1,6 @@
 {
   "name": "author-app",
-  "version": "1.2.44",
+  "version": "1.2.45",
   "private": true,
   "main": "electron/main.js",
   "scripts": {

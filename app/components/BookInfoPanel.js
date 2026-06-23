@@ -7,6 +7,7 @@ import { getSettingsNodes, updateSettingsNode, deleteSettingsNode, saveSettingsN
 import { getChapters } from '../lib/storage';
 import { createPortal } from 'react-dom';
 import { promptInput } from '../lib/promptInput';
+import { resolveAiEndpoint } from '../lib/ai-provider-compat';
 import {
     X, Maximize2, Minimize2, BookOpen, Users, MapPin, Globe, Gem, ClipboardList, Ruler,
     Layers, Clock, ChevronRight, FileText, Settings as SettingsIcon,
@@ -1074,11 +1075,8 @@ export default function BookInfoPanel() {
                                                     try {
                                                         const apiConfig = getChatApiConfig();
                                                         if (!apiConfig?.apiKey) { setAiEval({ _error: text('请先在设置中配置 AI API', 'Configure the AI API in Settings first', 'Сначала настройте AI API в настройках') }); return; }
-                                                        const pType = apiConfig?.providerType || apiConfig?.provider;
-                                                        const apiEndpoint = ['gemini-native', 'custom-gemini'].includes(pType) ? '/api/ai/gemini'
-                                                            : pType === 'openai-responses' ? '/api/ai/responses'
-                                                                : (['claude', 'custom-claude'].includes(pType) || apiConfig?.apiFormat === 'anthropic') ? '/api/ai/claude'
-                                                                    : '/api/ai';
+                                                        const apiEndpoint = resolveAiEndpoint(apiConfig);
+
                                                         const fields = [
                                                             { key: 'title', label: text('作品名称', 'Title', 'Название'), value: bookData.title },
                                                             { key: 'genre', label: text('题材类型', 'Genre', 'Жанр'), value: bookData.genre },

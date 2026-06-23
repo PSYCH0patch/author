@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { proxyFetch } from '../../../lib/proxy-fetch';
 import { rotateKey } from '../../../lib/keyRotator';
 
-// 通用模型列表拉取 — 支持 OpenAI 兼容格式和 Gemini 原生格式
+// 通用模型列表拉取 — OpenAI 兼容 / Claude 兼容 / Gemini 原生
 export async function POST(request) {
     try {
         let { apiKey, baseUrl, provider, embedOnly, proxyUrl } = await request.json();
@@ -16,12 +16,12 @@ export async function POST(request) {
         }
 
         // Gemini 原生格式
-        if (['gemini-native', 'custom-gemini'].includes(provider)) {
+        if (provider === 'gemini-native') {
             return await fetchGeminiModels(apiKey, baseUrl, embedOnly, proxyUrl);
         }
 
-        // Claude/Anthropic（多策略拉取）
-        if (['claude', 'custom-claude'].includes(provider)) {
+        // Claude 兼容格式
+        if (provider === 'claude') {
             return await fetchClaudeModels(apiKey, baseUrl, proxyUrl);
         }
 
@@ -37,83 +37,9 @@ export async function POST(request) {
     }
 }
 
-// Gemini 原生格式拉取模型 — 支持分页，兼容中转
-async function fetchGeminiModels(apiKey, baseUrl, embedOnly, proxyUrl) {
-    const base = (baseUrl || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
-    let allModels = [];
-    let pageToken = '';
-
-    // 循环分页拉取
-    do {
-        const url = `${base}/models?key=${apiKey}&pageSize=1000${pageToken ? `&pageToken=${pageToken}` : ''}`;
-
-        const response = await proxyFetch(url, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-        }, proxyUrl);
-
-        if (!response.ok) {
-            // 分页请求失败时，尝试不带 pageSize 参数（有些中转不支持）
-            if (allModels.length === 0) {
-                const fallbackUrl = `${base}/models?key=${apiKey}`;
-                const fallbackRes = await proxyFetch(fallbackUrl, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                }, proxyUrl);
-                if (!fallbackRes.ok) {
-                    return handleFetchError(fallbackRes);
-                }
-                const fallbackData = await fallbackRes.json();
-                allModels = extractModelArray(fallbackData);
-                break;
-            }
-            break;
-        }
-
-        const data = await response.json();
-        // 兼容不同中转返回格式：models[] 或 data[]
-        allModels = allModels.concat(extractModelArray(data));
-        pageToken = data.nextPageToken || '';
-    } while (pageToken);
-
-    let models = allModels;
-
-    // 过滤逻辑：有 supportedGenerationMethods 时按能力过滤，没有时全部保留
-    const hasCapabilityInfo = models.some(m => m.supportedGenerationMethods?.length > 0);
-
-    if (hasCapabilityInfo) {
-        if (embedOnly) {
-            models = models.filter(m => m.supportedGenerationMethods?.includes('embedContent'));
-        } else {
-            models = models.filter(m =>
-                !m.supportedGenerationMethods ||
-                m.supportedGenerationMethods.includes('generateContent') ||
-                m.supportedGenerationMethods.includes('embedContent')
-            );
-        }
-    } else if (embedOnly) {
-        // 无能力信息时，按名称匹配嵌入模型（同 OpenAI 路径的正则）
-        const EMBED_REGEX = /(?:^text-|embed|bge[-_]|bce[-_]|e5[-_]|gte[-_]|jina-clip|jina-embed|voyage-|uae[-_]|retrieval|LLM2Vec)/i;
-        const RERANK_REGEX = /(?:rerank|re-rank|re-ranker)/i;
-        models = models.filter(m => {
-            const id = (m.name || m.id || '');
-            return EMBED_REGEX.test(id) && !RERANK_REGEX.test(id);
-        });
-    }
-
-    models = models.map(m => ({
-        id: (m.name?.replace('models/', '') || m.id || m.name || '').trim(),
-        displayName: m.displayName || m.display_name || m.name?.replace('models/', '') || m.id || '',
-    }))
-        .filter(m => m.id) // 过滤掉空 ID
-        .sort((a, b) => a.id.localeCompare(b.id));
-
-    return NextResponse.json({ models });
-}
-
 // 从不同格式的响应中提取模型数组
 function extractModelArray(data) {
-    // Gemini 原生格式: { models: [...] }
+    // Anthropic 兼容格式也使用 data[]
     if (Array.isArray(data.models)) return data.models;
     // OpenAI 兼容格式: { data: [...] }
     if (Array.isArray(data.data)) return data.data;
@@ -232,7 +158,16 @@ async function fetchOpenAIModels(apiKey, baseUrl, embedOnly, provider, proxyUrl)
                 zhipu: [{ id: 'embedding-3', displayName: 'Embedding-3' }],
                 deepseek: [{ id: 'deepseek-embedding', displayName: 'DeepSeek Embedding' }],
                 moonshot: [{ id: 'moonshot-v1-embedding', displayName: 'Moonshot Embedding' }],
-                qwen: [{ id: 'text-embedding-v3', displayName: 'Text Embedding v3' }, { id: 'text-embedding-v2', displayName: 'Text Embedding v2' }],
+                bailian: [
+                    { id: 'text-embedding-v4', displayName: 'Text Embedding v4' },
+                    { id: 'text-embedding-v3', displayName: 'Text Embedding v3' },
+                    { id: 'text-embedding-v2', displayName: 'Text Embedding v2' },
+                ],
+                qwen: [
+                    { id: 'text-embedding-v4', displayName: 'Text Embedding v4' },
+                    { id: 'text-embedding-v3', displayName: 'Text Embedding v3' },
+                    { id: 'text-embedding-v2', displayName: 'Text Embedding v2' },
+                ],
                 baidu: [{ id: 'bce-reranker-base_v1', displayName: 'BCE Reranker Base' }, { id: 'tao-8k', displayName: 'Tao 8K' }],
                 doubao: [{ id: 'doubao-embedding', displayName: 'Doubao Embedding' }],
                 baichuan: [{ id: 'Baichuan-Text-Embedding', displayName: 'Baichuan Embedding' }],
@@ -278,130 +213,113 @@ async function handleFetchError(response) {
     );
 }
 
-// Claude/Anthropic 模型列表 — 多策略拉取
-// 策略1: Anthropic 原生 API（直连 api.anthropic.com）
-// 策略2: OpenAI 兼容格式（中转/代理）
-// 策略3: 预定义列表（兜底）
+// Claude 兼容模型列表（Anthropic /v1/models 协议）
 async function fetchClaudeModels(apiKey, baseUrl, proxyUrl) {
-    const base = (baseUrl || 'https://api.anthropic.com').replace(/\/$/, '');
-
-    // 策略1: 尝试 Anthropic 原生 /v1/models
-    if (apiKey) {
-        try {
-            const models = await tryAnthropicNativeModels(apiKey, base, proxyUrl);
-            if (models.length > 0) {
-                return NextResponse.json({ models });
-            }
-        } catch {
-            // Fall back to the OpenAI-compatible models endpoint.
-        }
-
-        // 策略2: 尝试 OpenAI 兼容格式 /v1/models（很多中转用这种格式）
-        try {
-            const models = await tryOpenAICompatModels(apiKey, base, proxyUrl);
-            if (models.length > 0) {
-                return NextResponse.json({ models });
-            }
-        } catch {
-            // Fall back to the built-in Claude model list.
-        }
+    const base = String(baseUrl || '').trim().replace(/\/+$/, '');
+    if (!base) {
+        return NextResponse.json({ error: '请先填写 Claude 兼容 API 地址' }, { status: 400 });
     }
 
-    // 策略3: 预定义列表
-    const models = [
-        { id: 'claude-opus-4-20250514', displayName: 'Claude Opus 4' },
-        { id: 'claude-sonnet-4-20250514', displayName: 'Claude Sonnet 4' },
-        { id: 'claude-3-7-sonnet-20250219', displayName: 'Claude 3.7 Sonnet' },
-        { id: 'claude-3-5-haiku-20241022', displayName: 'Claude 3.5 Haiku' },
-        { id: 'claude-3-5-sonnet-20241022', displayName: 'Claude 3.5 Sonnet v2' },
-        { id: 'claude-3-5-sonnet-20240620', displayName: 'Claude 3.5 Sonnet' },
-        { id: 'claude-3-opus-20240229', displayName: 'Claude 3 Opus' },
-        { id: 'claude-3-haiku-20240307', displayName: 'Claude 3 Haiku' },
-    ];
+    const endpoint = base.endsWith('/v1') ? base + '/models?limit=100' : base + '/v1/models?limit=100';
+    const response = await proxyFetch(endpoint, {
+        method: 'GET',
+        headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+        },
+    }, proxyUrl);
+
+    if (!response.ok) {
+        if ([404, 405, 501].includes(response.status)) {
+            return NextResponse.json({ models: [
+                { id: 'claude-sonnet-4-20250514', displayName: 'Claude Sonnet 4' },
+                { id: 'claude-3-7-sonnet-20250219', displayName: 'Claude 3.7 Sonnet' },
+                { id: 'claude-3-5-haiku-20241022', displayName: 'Claude 3.5 Haiku' },
+            ] });
+        }
+        return handleFetchError(response);
+    }
+
+    const data = await response.json();
+    const models = extractModelArray(data)
+        .map(model => ({
+            id: String(model?.id || model?.name || '').trim(),
+            displayName: model?.display_name || model?.displayName || model?.id || model?.name || '',
+        }))
+        .filter(model => model.id)
+        .sort((a, b) => a.id.localeCompare(b.id));
+
     return NextResponse.json({ models });
 }
 
-// Anthropic 原生格式：x-api-key + anthropic-version header
-async function tryAnthropicNativeModels(apiKey, base, proxyUrl) {
+// Gemini 原生格式模型列表 — 分页拉取（不内置官方默认地址，baseUrl 必填）
+async function fetchGeminiModels(apiKey, baseUrl, embedOnly, proxyUrl) {
+    const base = String(baseUrl || '').trim().replace(/\/+$/, '');
+    if (!base) {
+        return NextResponse.json({ error: '请先填写 Gemini 原生 API 地址（通常以 /v1beta 结尾）' }, { status: 400 });
+    }
+
     let allModels = [];
-    let hasMore = true;
-    let afterId = null;
+    let pageToken = '';
 
-    while (hasMore) {
-        let url = `${base}/v1/models?limit=100`;
-        if (afterId) url += `&after_id=${afterId}`;
-
+    // 循环分页拉取
+    do {
+        const url = `${base}/models?key=${apiKey}&pageSize=1000${pageToken ? `&pageToken=${pageToken}` : ''}`;
         const response = await proxyFetch(url, {
             method: 'GET',
-            headers: {
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
         }, proxyUrl);
 
-        if (!response.ok) return [];
+        if (!response.ok) {
+            // 首页失败时不带 pageSize 重试（部分中转不支持分页参数）
+            if (allModels.length === 0) {
+                const fallbackUrl = `${base}/models?key=${apiKey}`;
+                const fallbackRes = await proxyFetch(fallbackUrl, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                }, proxyUrl);
+                if (!fallbackRes.ok) return handleFetchError(fallbackRes);
+                allModels = extractModelArray(await fallbackRes.json());
+                break;
+            }
+            break;
+        }
 
         const data = await response.json();
-        const pageModels = data.data || [];
-        allModels = allModels.concat(pageModels);
+        allModels = allModels.concat(extractModelArray(data));
+        pageToken = data.nextPageToken || '';
+    } while (pageToken);
 
-        hasMore = data.has_more === true;
-        if (hasMore && pageModels.length > 0) {
-            afterId = pageModels[pageModels.length - 1].id;
+    let models = allModels;
+    // 有能力信息时按能力过滤；没有时全部保留
+    const hasCapabilityInfo = models.some(m => m.supportedGenerationMethods?.length > 0);
+
+    if (hasCapabilityInfo) {
+        if (embedOnly) {
+            models = models.filter(m => m.supportedGenerationMethods?.includes('embedContent'));
         } else {
-            hasMore = false;
+            models = models.filter(m =>
+                !m.supportedGenerationMethods ||
+                m.supportedGenerationMethods.includes('generateContent') ||
+                m.supportedGenerationMethods.includes('embedContent')
+            );
         }
+    } else if (embedOnly) {
+        const EMBED_REGEX = /(?:^text-|embed|bge[-_]|bce[-_]|e5[-_]|gte[-_]|jina-clip|jina-embed|voyage-|uae[-_]|retrieval|LLM2Vec)/i;
+        const RERANK_REGEX = /(?:rerank|re-rank|re-ranker)/i;
+        models = models.filter(m => {
+            const id = (m.name || m.id || '');
+            return EMBED_REGEX.test(id) && !RERANK_REGEX.test(id);
+        });
     }
 
-    return allModels.map(m => ({
-        id: m.id,
-        displayName: m.display_name || m.id,
-    })).sort((a, b) => a.id.localeCompare(b.id));
-}
+    models = models.map(m => ({
+        id: (m.name?.replace('models/', '') || m.id || m.name || '').trim(),
+        displayName: m.displayName || m.display_name || m.name?.replace('models/', '') || m.id || '',
+    }))
+        .filter(m => m.id)
+        .sort((a, b) => a.id.localeCompare(b.id));
 
-// OpenAI 兼容格式：Bearer token + /v1/models（多数中转使用此格式）
-async function tryOpenAICompatModels(apiKey, base, proxyUrl) {
-    // 根据 base 是否已含版本前缀，构建候选路径
-    const pathsToTry = [];
-    if (base.endsWith('/v1') || base.endsWith('/v1beta')) {
-        pathsToTry.push(`${base}/models`);
-    } else {
-        pathsToTry.push(`${base}/v1/models`);
-        pathsToTry.push(`${base}/models`);
-    }
-
-    for (const url of pathsToTry) {
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
-
-            const response = await proxyFetch(url, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                },
-                signal: controller.signal,
-            }, proxyUrl);
-            clearTimeout(timeout);
-
-            if (!response.ok) continue;
-
-            const data = await response.json();
-            const rawModels = extractModelArray(data);
-            if (rawModels.length === 0) continue;
-
-            return rawModels.map(m => ({
-                id: (m.id || m.name || '').trim(),
-                displayName: m.display_name || m.displayName || m.id || m.name || '',
-            }))
-                .filter(m => m.id)
-                .sort((a, b) => a.id.localeCompare(b.id));
-        } catch {
-            continue;
-        }
-    }
-
-    return [];
+    return NextResponse.json({ models });
 }

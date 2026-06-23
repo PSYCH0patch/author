@@ -21,6 +21,7 @@ import { initPersistence } from './lib/persistence';
 import { buildContext, compileSystemPrompt, compileUserPrompt, getContextItems, estimateTokens } from './lib/context-engine';
 import { addTokenRecord } from './lib/token-stats';
 import { getProjectSettings, WRITING_MODES, getWritingMode, addSettingsNode, updateSettingsNode, deleteSettingsNode, getSettingsNodes, getActiveWorkId } from './lib/settings';
+import { resolveAiEndpoint } from './lib/ai-provider-compat';
 import {
   loadSessionStore, saveSessionStore, createSession, getActiveSession,
 } from './lib/chat-sessions';
@@ -28,29 +29,30 @@ import { loadGenerationArchive, normalizeGenerationArchive, saveGenerationArchiv
 import { exportProject, importProject } from './lib/project-io';
 import { createSnapshot } from './lib/snapshots';
 import { initDiagnostics, recordDiagnosticEvent } from './lib/diagnostics';
+import { clearChunkRecoveryQuery, importWithChunkRecovery } from './lib/chunk-recovery';
 // 动态导入编辑器和设定集面板及侧边栏（避免 SSR 问题）
-const Sidebar = dynamic(() => import('./components/Sidebar'), { ssr: false });
-const Editor = dynamic(() => import('./components/Editor'), {
+const Sidebar = dynamic(() => importWithChunkRecovery(() => import('./components/Sidebar')), { ssr: false });
+const Editor = dynamic(() => importWithChunkRecovery(() => import('./components/Editor')), {
   ssr: false,
   loading: () => (
     <div style={{ flex: 1, background: 'var(--bg-canvas)', transition: 'none' }} />
   ),
 });
-const SettingsPanel = dynamic(() => import('./components/SettingsPanel'), { ssr: false });
-const CategorySettingsModal = dynamic(() => import('./components/CategorySettingsModal'), { ssr: false });
-const HelpPanel = dynamic(() => import('./components/HelpPanel'), { ssr: false });
-const TourOverlay = dynamic(() => import('./components/TourOverlay'), { ssr: false });
-const AiSidebar = dynamic(() => import('./components/AiSidebar'), { ssr: false });
-const SnapshotManager = dynamic(() => import('./components/SnapshotManager'), { ssr: false });
-const WelcomeModal = dynamic(() => import('./components/WelcomeModal'), { ssr: false });
-const UpdateBanner = dynamic(() => import('./components/UpdateBanner'), { ssr: false });
-const AndroidDownloadMenu = dynamic(() => import('./components/AndroidDownloadMenu'), { ssr: false });
-const BookInfoPanel = dynamic(() => import('./components/BookInfoPanel'), { ssr: false });
-const CloudSyncIndicator = dynamic(() => import('./components/CloudSyncIndicator'), { ssr: false });
-const LoginModal = dynamic(() => import('./components/LoginModal'), { ssr: false });
-const AccountModal = dynamic(() => import('./components/AccountModal'), { ssr: false });
-const RegisterModal = dynamic(() => import('./components/RegisterModal'), { ssr: false });
-const SyncGuideModal = dynamic(() => import('./components/SyncGuideModal'), { ssr: false });
+const SettingsPanel = dynamic(() => importWithChunkRecovery(() => import('./components/SettingsPanel')), { ssr: false });
+const CategorySettingsModal = dynamic(() => importWithChunkRecovery(() => import('./components/CategorySettingsModal')), { ssr: false });
+const HelpPanel = dynamic(() => importWithChunkRecovery(() => import('./components/HelpPanel')), { ssr: false });
+const TourOverlay = dynamic(() => importWithChunkRecovery(() => import('./components/TourOverlay')), { ssr: false });
+const AiSidebar = dynamic(() => importWithChunkRecovery(() => import('./components/AiSidebar')), { ssr: false });
+const SnapshotManager = dynamic(() => importWithChunkRecovery(() => import('./components/SnapshotManager')), { ssr: false });
+const WelcomeModal = dynamic(() => importWithChunkRecovery(() => import('./components/WelcomeModal')), { ssr: false });
+const UpdateBanner = dynamic(() => importWithChunkRecovery(() => import('./components/UpdateBanner')), { ssr: false });
+const AndroidDownloadMenu = dynamic(() => importWithChunkRecovery(() => import('./components/AndroidDownloadMenu')), { ssr: false });
+const BookInfoPanel = dynamic(() => importWithChunkRecovery(() => import('./components/BookInfoPanel')), { ssr: false });
+const CloudSyncIndicator = dynamic(() => importWithChunkRecovery(() => import('./components/CloudSyncIndicator')), { ssr: false });
+const LoginModal = dynamic(() => importWithChunkRecovery(() => import('./components/LoginModal')), { ssr: false });
+const AccountModal = dynamic(() => importWithChunkRecovery(() => import('./components/AccountModal')), { ssr: false });
+const RegisterModal = dynamic(() => importWithChunkRecovery(() => import('./components/RegisterModal')), { ssr: false });
+const SyncGuideModal = dynamic(() => importWithChunkRecovery(() => import('./components/SyncGuideModal')), { ssr: false });
 
 const ACTIVE_CHAPTER_KEY_PREFIX = 'author-active-chapter-';
 const CONTEXT_STRATEGY_VERSION_KEY = 'author-context-strategy-version';
@@ -186,6 +188,7 @@ export default function Home() {
   }, [flushSessionStoreSave]);
 
   useEffect(() => {
+    clearChunkRecoveryQuery();
     initDiagnostics();
     recordDiagnosticEvent('app.mount', 'Home mounted', {}, 'info');
   }, []);
@@ -619,17 +622,22 @@ export default function Home() {
     );
   }, [activeChapter, activeWorkId, showToast, updateChapterStore]);
 
-  const handleEditorUpdate = useCallback(async ({ chapterId: targetChapterId, html, wordCount }) => {
-    const chapterIdToSave = targetChapterId || activeChapterId;
-    if (!chapterIdToSave) return;
-    const updated = await updateChapter(chapterIdToSave, {
+  const handleEditorUpdate = useCallback(async ({ chapterId: targetChapterId, workId: targetWorkId, html, wordCount }) => {
+    // Destructive writes must name the document that actually produced the HTML.
+    // Falling back to the currently selected chapter can write A's delayed update into B.
+    if (!targetChapterId || !targetWorkId) {
+      console.error('Rejected editor save without an explicit document identity');
+      return;
+    }
+    const workIdToSave = getWorkScopedId(targetWorkId);
+    const updated = await updateChapter(targetChapterId, {
       content: html,
       wordCount,
-    }, activeWorkId);
-    if (updated) {
-      updateChapterStore(chapterIdToSave, { content: html, wordCount });
+    }, workIdToSave);
+    if (updated && workIdToSave === getWorkScopedId(activeWorkId)) {
+      updateChapterStore(targetChapterId, { content: html, wordCount });
     }
-  }, [activeChapterId, activeWorkId, updateChapterStore]);
+  }, [activeWorkId, updateChapterStore]);
 
   const handleSplitActiveChapter = useCallback(async (draft) => {
     if (!activeChapter || !isWritableChapter(activeChapter)) return null;
@@ -723,11 +731,8 @@ export default function Home() {
       const userPrompt = compileUserPrompt(mode, text, instruction);
 
       const { apiConfig } = getProjectSettings();
-      const pType = apiConfig?.providerType || apiConfig?.provider;
-      const apiEndpoint = ['gemini-native', 'custom-gemini'].includes(pType) ? '/api/ai/gemini'
-        : pType === 'openai-responses' ? '/api/ai/responses'
-          : (['claude', 'custom-claude'].includes(pType) || apiConfig?.apiFormat === 'anthropic') ? '/api/ai/claude'
-            : '/api/ai';
+      const apiEndpoint = resolveAiEndpoint(apiConfig);
+
 
       const res = await fetch(apiEndpoint, {
         method: 'POST',

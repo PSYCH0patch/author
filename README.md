@@ -36,6 +36,8 @@ I watched the versatility of these models being gutted. I don't want us to live 
 - **Inline remarks / comments** — mark any sentence with a side note; DOCX annotated exports use native Word comments
 - **KaTeX** math formula support
 - Customizable fonts, font size, line height, and colors
+- **Text to speech on desktop and Android** — read the selection or current chapter with pause, resume, voice, and speed controls
+- **Current paragraph highlight** — optional focus tint plus a retained caret when the editor loses focus
 - Real-time word / character / paragraph count
 
 ### 🤖 AI Writing Assistant

@@ -3,9 +3,11 @@
 import { useEffect } from 'react';
 import { AlertTriangle, Download, RefreshCw, Trash2 } from 'lucide-react';
 import { downloadDiagnosticReport, initDiagnostics, recordDiagnosticEvent } from './lib/diagnostics';
+import { recoverFromChunkLoadError } from './lib/chunk-recovery';
 
 export default function Error({ error, reset }) {
     useEffect(() => {
+        if (recoverFromChunkLoadError(error)) return;
         initDiagnostics();
         recordDiagnosticEvent('react.error-boundary', error?.message || 'React error boundary', {
             error: {

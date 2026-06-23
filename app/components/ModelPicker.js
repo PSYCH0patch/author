@@ -77,10 +77,22 @@ export default function ModelPicker({ target = 'editor', onOpenSettings, classNa
         const settings = getProjectSettings();
         if (target === 'embed') {
             const ac = settings.apiConfig || {};
+            const enabled = !!ac.useCustomEmbed;
+            const mainProvider = ac.providerType || ac.provider || '';
+            const activeProvider = enabled ? (ac.embedProvider || '') : '';
+            const canReuseMainKey = activeProvider && activeProvider === mainProvider;
             setConfig({
-                active: { provider: ac.embedProvider || '', model: ac.embedModel || '', apiKey: ac.embedApiKey || ac.apiKey || '' },
+                active: enabled
+                    ? {
+                        provider: activeProvider,
+                        model: ac.embedModel || '',
+                        apiKey: ac.embedApiKey || (canReuseMainKey ? ac.apiKey : '') || '',
+                    }
+                    : { provider: '', model: '', apiKey: '' },
+                enabled,
                 isFallback: false,
                 providerConfigs: ac.embedProviderConfigs || {},
+                mainProvider,
                 mainApiKey: ac.apiKey,
             });
         } else if (target === 'chat') {
@@ -173,7 +185,11 @@ export default function ModelPicker({ target = 'editor', onOpenSettings, classNa
                 processedKeys.add(instanceKey);
                 const cfg = pc[instanceKey];
                 const hasKey = target === 'embed'
-                    ? !!(cfg?.apiKey || (config.active?.provider === instanceKey && config.active?.apiKey) || config.mainApiKey)
+                    ? !!(config.enabled && (
+                        cfg?.apiKey
+                        || (config.active?.provider === instanceKey && config.active?.apiKey)
+                        || (config.mainProvider === instanceKey && config.mainApiKey)
+                    ))
                     : !!(cfg?.apiKey || (config.active?.provider === instanceKey && config.active?.apiKey) || (config.mainProvider === instanceKey && config.mainApiKey));
                 const userModels = cfg?.models || [];
 
@@ -210,7 +226,9 @@ export default function ModelPicker({ target = 'editor', onOpenSettings, classNa
             processedKeys.add(key);
             const provType = cfg.providerType || key;
             const baseProv = PROVIDERS.find(pp => pp.key === provType);
-            const hasKey = !!(cfg.apiKey);
+            const hasKey = target === 'embed'
+                ? !!(config.enabled && cfg.apiKey)
+                : !!cfg.apiKey;
             const userModels = cfg.models || [];
             const displayLabel = cfg.instanceName || getProviderLabel(baseProv || provType, text);
             const q = search.toLowerCase();
@@ -237,7 +255,7 @@ export default function ModelPicker({ target = 'editor', onOpenSettings, classNa
             { label: t('modelPicker.configured') || '已配置', items: configured },
             { label: t('modelPicker.unconfigured') || '未配置', items: unconfigured },
         ];
-    }, [config, search, t, text]);
+    }, [config, search, t, target, text]);
 
     // 切换模型
     const selectModel = useCallback((providerKey, modelId) => {
@@ -404,6 +422,11 @@ export default function ModelPicker({ target = 'editor', onOpenSettings, classNa
 
                     {/* 分组列表 */}
                     <div className="model-picker-list">
+                        {target === 'embed' && !config.enabled && (
+                            <div className="model-picker-empty">
+                                {text('尚未启用独立向量模型，请先在设置中配置', 'Embedding is not enabled; configure it in settings first', 'Embedding не включён; сначала настройте его')}
+                            </div>
+                        )}
                         {groups.map(group => {
                             if (group.items.length === 0) return null;
                             return (

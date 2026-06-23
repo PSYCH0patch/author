@@ -18,6 +18,7 @@ import SyncConfirmModal from './SyncConfirmModal';
 import ExitSyncModal from './ExitSyncModal';
 import { buildChapterSynopsisText, getChapterSynopsis, hasChapterSynopsis, normalizeChapterSynopsis, parseGeneratedSynopsis, stripChapterHtml } from '../lib/chapter-synopsis';
 import { buildChapterMemoryGroupText, buildChapterSourceText, getChapterMemoryGroups, hasChapterMemoryGroup, normalizeChapterMemoryGroup, saveChapterMemoryGroups } from '../lib/chapter-memory-groups';
+import { resolveAiEndpoint } from '../lib/ai-provider-compat';
 
 /** 更多操作下拉菜单（Portal 渲染到 body，彻底避免 overflow 裁剪） */
 function MoreMenuPortal({ anchorRef, t, setShowSettings, setShowMoreMenu, onOpenHelp, setShowGitPopup }) {
@@ -173,14 +174,6 @@ function SyncMenuPortal({ anchorRef, t, text, showToast, cloudinarySyncStatus, s
         </>,
         document.body
     );
-}
-
-function resolveAiEndpoint(apiConfig) {
-    const provider = apiConfig?.providerType || apiConfig?.provider;
-    if (['gemini-native', 'custom-gemini'].includes(provider)) return '/api/ai/gemini';
-    if (provider === 'openai-responses') return '/api/ai/responses';
-    if (['claude', 'custom-claude'].includes(provider) || apiConfig?.apiFormat === 'anthropic') return '/api/ai/claude';
-    return '/api/ai';
 }
 
 async function readAiTextStream(response) {
@@ -2787,6 +2780,17 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                             const catLabel = customLabel && customLabel !== builtInCategoryNamesZh[cat]
                                 ? customLabel
                                 : getCategoryLabel(cat, t, text);
+                            const navLabel = customLabel && customLabel !== builtInCategoryNamesZh[cat]
+                                ? customLabel
+                                : ({
+                                    character: text('人物', 'Characters', 'Персонажи'),
+                                    location: text('地点', 'Places', 'Места'),
+                                    world: text('世界观', 'World', 'Мир'),
+                                    object: text('物品', 'Items', 'Предметы'),
+                                    plot: text('大纲', 'Outline', 'План'),
+                                    rules: text('规则', 'Rules', 'Правила'),
+                                    custom: text('自定义', 'Custom', 'Свои'),
+                                }[cat] || catLabel);
                             const isDragging = navDragCat === cat;
                             const isDragOver = navDragOverCat === cat;
                             return (
@@ -2833,7 +2837,7 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                     <IconButton
                                         icon={<CatIcon size={18} style={{ color: activeNavTab === cat ? colors.color : undefined }} />}
                                         label={catLabel}
-                                        text={sidebarOpen ? catLabel.slice(0, 2) : undefined}
+                                        text={sidebarOpen ? navLabel : undefined}
                                         tooltipSide="right"
                                         className={`nav-item ${activeNavTab === cat ? 'active' : ''}`}
                                         onClick={() => {

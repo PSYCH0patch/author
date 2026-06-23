@@ -48,14 +48,16 @@ export async function getEmbedding(text, apiConfig, options = {}) {
 
         if (!res.ok) {
             const errorText = await res.text();
-            console.error('getEmbedding HTTP error:', errorText);
+            const log = throwOnError ? console.error : console.warn;
+            log('getEmbedding HTTP error:', errorText);
             if (!ignoreBackoff) _embedErrorUntil = Date.now() + EMBED_BACKOFF_MS;
             return fail(describeEmbedError(res.status, errorText));
         }
 
         const data = await res.json();
         if (data.error) {
-            console.error('getEmbedding API error:', data.error);
+            const log = throwOnError ? console.error : console.warn;
+            log('getEmbedding API error:', data.error);
             return fail(data.error);
         }
 
@@ -65,7 +67,8 @@ export async function getEmbedding(text, apiConfig, options = {}) {
 
         return data.embedding;
     } catch (err) {
-        console.error('getEmbedding fetch error:', err);
+        const log = throwOnError ? console.error : console.warn;
+        log('getEmbedding fetch error:', err);
         if (!ignoreBackoff) _embedErrorUntil = Date.now() + EMBED_BACKOFF_MS;
         return fail(err?.message || String(err));
     }

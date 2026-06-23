@@ -1,1 +1,1 @@
-桌面/移动端国际化与云同步稳定性完善 | Desktop/mobile localization and cloud sync stability improvements
+新增跨端文字朗读并增强 AI、编辑器与设定集稳定性 | Added cross-platform text to speech and improved AI, editor, and lore stability

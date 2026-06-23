@@ -549,8 +549,8 @@
         "saveProfileBtn": "Сохранить текущую конфигурацию",
         "saveProfilePlaceholder": "Название профиля",
         "saveBtn": "Сохранить",
-        "howToGetKey": "Как получить API Key?",
-        "keyGuide": "• ZhipuAI: Посетите open.bigmodel.cn для регистрации\n• DeepSeek: Посетите platform.deepseek.com\n• Google Gemini: Посетите aistudio.google.com/apikey\n• SiliconFlow: Посетите siliconflow.cn\n• Moonshot: Посетите platform.moonshot.cn",
+        "howToGetKey": "Как настроить API?",
+        "keyGuide": "• ZhipuAI: Посетите open.bigmodel.cn для регистрации\n• DeepSeek: Посетите platform.deepseek.com\n• Международные совместимые endpoints: укажите разрешенный relay или собственный URL; официальные прямые адреса не встроены\n• SiliconFlow: Посетите siliconflow.cn\n• Moonshot: Посетите platform.moonshot.cn",
         "networkError": "Ошибка сетевого соединения",
         "fetchModelsFailed": "Не удалось получить список моделей",
         "fetchEmbedModelsFailed": "Не удалось получить список моделей Embedding",
@@ -629,7 +629,13 @@
         "chatSendEnterDesc": "Enter отправляет сообщение, Shift + Enter добавляет новую строку",
         "chatSendCtrlEnter": "Ctrl / ⌘ + Enter отправляет",
         "chatSendCtrlEnterDesc": "Enter добавляет новую строку, Ctrl / ⌘ + Enter отправляет сообщение",
-        "chatSendShortcutHint": "Настройка применяется к компактному и развернутому полю AI-чата."
+        "chatSendShortcutHint": "Настройка применяется к компактному и развернутому полю AI-чата.",
+        "currentLineHighlightLabel": "Подсветка текущего абзаца",
+        "currentLineHighlightOn": "Вкл",
+        "currentLineHighlightOnDesc": "Подсветка абзаца и курсор при потере фокуса",
+        "currentLineHighlightOff": "Выкл",
+        "currentLineHighlightOffDesc": "Без подсветки и курсора",
+        "currentLineHighlightHint": "Бледный фон отмечает редактируемый абзац; после потери фокуса тонкий курсор показывает, где вы остановились."
     },
     "bookInfo": {
         "intro": "Эта информация помогает ИИ понять направление и стиль вашего произведения. Даже заполнение одного-двух полей значительно улучшит качество ИИ.",

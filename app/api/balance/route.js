@@ -21,7 +21,7 @@ export async function POST(request) {
         const effectiveBaseUrl = (baseUrl || '').replace(/\/+$/, '');
 
         // 有专用接口的已知供应商列表
-        const knownProviders = ['deepseek', 'siliconflow', 'openrouter', 'moonshot'];
+        const knownProviders = ['deepseek', 'siliconflow', 'moonshot'];
         const isKnown = knownProviders.includes(provider);
 
         if (isKnown) {
@@ -122,7 +122,7 @@ async function tryProviderSpecific(provider, baseUrl, apiKey, proxyUrl) {
     const handlers = {
         deepseek: tryDeepSeek,
         siliconflow: trySiliconFlow,
-        openrouter: tryOpenRouter,
+
         moonshot: tryMoonshot,
     };
 
@@ -134,7 +134,7 @@ async function tryProviderSpecific(provider, baseUrl, apiKey, proxyUrl) {
     }
 
     // 对于自定义供应商，尝试所有已知的接口模式
-    if (provider === 'custom' || provider === 'custom-gemini' || provider === 'custom-claude') {
+    if (provider === 'custom') {
         for (const fn of Object.values(handlers)) {
             const result = await fn(baseUrl, apiKey, proxyUrl);
             if (result) return result;
@@ -198,35 +198,6 @@ async function trySiliconFlow(baseUrl, apiKey, proxyUrl) {
                 balance: parseFloat(d.balance || 0),
                 charge_balance: parseFloat(d.chargeBalance || 0),
                 total_balance: parseFloat(d.totalBalance || 0),
-            },
-        };
-    } catch {
-        return null;
-    }
-}
-
-// --- OpenRouter ---
-async function tryOpenRouter(baseUrl, apiKey, proxyUrl) {
-    try {
-        const res = await fetchWithTimeout('https://openrouter.ai/api/v1/credits', {
-            headers: { 'Authorization': `Bearer ${apiKey}` },
-        }, 8000, proxyUrl);
-        if (!res.ok) return null;
-        const data = await readJsonSafely(res);
-        if (!data) return null;
-        const d = data.data || data;
-        if (d.total_credits == null && d.balance == null) return null;
-
-        const balance = d.balance ?? (d.total_credits - (d.total_usage || 0));
-        return {
-            supported: true,
-            source: 'openrouter',
-            balance: round(balance),
-            currency: 'USD',
-            detail: {
-                total_credits: d.total_credits,
-                total_usage: d.total_usage,
-                remaining: round(balance),
             },
         };
     } catch {

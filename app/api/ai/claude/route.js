@@ -1,5 +1,5 @@
-// Claude/Anthropic Messages API — SSE 流式转发（Edge Runtime 确保流式不被缓冲）
-// 使用 Anthropic Messages API 格式 (/v1/messages)
+// Claude 兼容 Messages API — SSE 流式转发
+// 使用 Anthropic 兼容格式 (/v1/messages)
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -58,17 +58,24 @@ export async function POST(request) {
         const proxyUrl = apiConfig?.proxyUrl || '';
 
         const apiKey = rotateKey(apiConfig?.apiKey || process.env.CLAUDE_API_KEY);
-        const baseUrl = (apiConfig?.baseUrl || process.env.CLAUDE_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '');
+        const baseUrl = String(apiConfig?.baseUrl || process.env.CLAUDE_BASE_URL || '').trim().replace(/\/+$/, '');
         const model = apiConfig?.model || process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
         if (!apiKey) {
             return new Response(
-                JSON.stringify({ error: '请先配置 API Key。点击左下角 ⚙️ → API配置，填入你的 Anthropic Key' }),
+                JSON.stringify({ error: '请先配置 Claude 兼容 API Key' }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
 
-        const url = `${baseUrl}/v1/messages`;
+        if (!baseUrl) {
+            return new Response(
+                JSON.stringify({ error: '请先填写 Claude 兼容 API 地址' }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
+        const url = baseUrl.endsWith('/v1') ? baseUrl + '/messages' : baseUrl + '/v1/messages';
         const commonHeaders = {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
@@ -126,7 +133,7 @@ export async function POST(request) {
 
             if (!round1Res.ok) {
                 const errorText = await round1Res.text();
-                console.error('Claude Function Calling 第1轮错误:', round1Res.status, errorText);
+                console.error('Claude 兼容 Function Calling 第1轮错误:', round1Res.status, errorText);
                 return errorResponse(round1Res.status, errorText);
             }
 
@@ -190,7 +197,7 @@ export async function POST(request) {
 
                 if (!round2Res.ok) {
                     const errorText = await round2Res.text();
-                    console.error('Claude Function Calling 第2轮错误:', round2Res.status, errorText);
+                    console.error('Claude 兼容 Function Calling 第2轮错误:', round2Res.status, errorText);
                     return errorResponse(round2Res.status, errorText);
                 }
 
@@ -245,14 +252,14 @@ export async function POST(request) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Claude API 错误:', response.status, errorText);
+            console.error('Claude 兼容 API 错误:', response.status, errorText);
             return errorResponse(response.status, errorText);
         }
 
         return streamClaudeResponse(response);
 
     } catch (error) {
-        console.error('Claude 接口错误:', error);
+        console.error('Claude 兼容接口错误:', error);
         return new Response(
             JSON.stringify({ error: '网络连接失败，请检查 API 地址是否正确' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }

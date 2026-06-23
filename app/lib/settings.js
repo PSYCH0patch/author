@@ -4,6 +4,7 @@
 
 import { persistGet, persistSet, persistDel } from './persistence';
 import { getEmbedding } from './embeddings';
+import { migrateApiConfigToCompatible } from './ai-provider-compat';
 
 const SETTINGS_KEY = 'author-project-settings';
 
@@ -482,6 +483,37 @@ const DEFAULT_SETTINGS = {
     },
 };
 
+const LEGACY_BAILIAN_EMBED_MODELS = new Set(['text-embedding-v3-small']);
+
+function migrateEmbeddingConfig(apiConfig) {
+    if (!apiConfig || typeof apiConfig !== 'object') return false;
+    let changed = false;
+
+    if (apiConfig.embedProvider === 'bailian' && LEGACY_BAILIAN_EMBED_MODELS.has(apiConfig.embedModel)) {
+        apiConfig.embedModel = 'text-embedding-v4';
+        changed = true;
+    }
+
+    const bailianConfig = apiConfig.embedProviderConfigs?.bailian;
+    if (bailianConfig && typeof bailianConfig === 'object') {
+        if (LEGACY_BAILIAN_EMBED_MODELS.has(bailianConfig.model)) {
+            bailianConfig.model = 'text-embedding-v4';
+            changed = true;
+        }
+        if (Array.isArray(bailianConfig.models)) {
+            const migratedModels = [...new Set(bailianConfig.models.map(model => (
+                LEGACY_BAILIAN_EMBED_MODELS.has(model) ? 'text-embedding-v4' : model
+            )))];
+            if (migratedModels.join('\n') !== bailianConfig.models.join('\n')) {
+                bailianConfig.models = migratedModels;
+                changed = true;
+            }
+        }
+    }
+
+    return changed;
+}
+
 // 获取项目设定
 export function getProjectSettings() {
     if (typeof window === 'undefined') return DEFAULT_SETTINGS;
@@ -498,6 +530,16 @@ export function getProjectSettings() {
                 settings.apiConfig = apiData.apiConfig || settings.apiConfig;
                 settings.chatApiConfig = apiData.chatApiConfig !== undefined ? apiData.chatApiConfig : settings.chatApiConfig;
             } catch { /* ignore */ }
+        }
+
+        const migratedApiConfig = migrateEmbeddingConfig(settings.apiConfig)
+            || migrateApiConfigToCompatible(settings.apiConfig);
+        const migratedChatConfig = migrateApiConfigToCompatible(settings.chatApiConfig);
+        if (migratedApiConfig || migratedChatConfig) {
+            localStorage.setItem('author-api-config', JSON.stringify({
+                apiConfig: settings.apiConfig,
+                chatApiConfig: settings.chatApiConfig,
+            }));
         }
 
         // 自动迁移：如果旧的 SETTINGS_KEY 里还存在 apiConfig（特别是包含配置时），并且还没有独立的 author-api-config，分离它

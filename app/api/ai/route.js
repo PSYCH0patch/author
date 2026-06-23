@@ -121,7 +121,7 @@ export async function POST(request) {
         const proxyUrl = apiConfig?.proxyUrl || '';
 
         const apiKey = rotateKey(apiConfig?.apiKey || process.env.API_KEY || process.env.ZHIPU_API_KEY);
-        const baseUrl = apiConfig?.baseUrl || process.env.API_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
+        const baseUrl = String(apiConfig?.baseUrl || process.env.API_BASE_URL || '').trim();
         const model = apiConfig?.model || process.env.API_MODEL || 'glm-4-flash';
 
         if (!apiKey) {
@@ -131,7 +131,14 @@ export async function POST(request) {
             );
         }
 
-        const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+        if (!baseUrl) {
+            return new Response(
+                JSON.stringify({ error: '请先填写 OpenAI 兼容端点地址（通常以 /v1 结尾）' }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
+        const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
-import { Selection, TextSelection } from '@tiptap/pm/state';
+import { EditorState, Selection, TextSelection } from '@tiptap/pm/state';
+import { redoDepth, undoDepth } from '@tiptap/pm/history';
 import { DOMParser as PmDOMParser, DOMSerializer } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -18,6 +19,7 @@ import { Markdown } from 'tiptap-markdown';
 import { MathInline, MathBlock, openMathEditor } from './MathExtension';
 import { PageBreakExtension } from './PageBreakExtension';
 import { SearchHighlightExtension } from './SearchHighlightExtension';
+import { CursorAidExtension } from './CursorAidExtension';
 import GhostMark from './GhostMark';
 import AiDiffDeleteMark from './AiDiffDeleteMark';
 import RemarkMark, { promptForRemark } from './RemarkMark';
@@ -25,7 +27,7 @@ import EditorBubbleMenu from './EditorBubbleMenu';
 import { createSlashExtension, SlashCommandMenu } from './SlashCommands';
 import { useEffect, useCallback, useRef, useState, useMemo, useId, forwardRef, useImperativeHandle } from 'react';
 import {
-    ChevronUp, ChevronDown, Undo2, Redo2, Wand2, MessageSquareText, Flag,
+    ChevronUp, ChevronDown, Undo2, Redo2, Wand2, MessageSquareText, Flag, FileCog,
     List, ListOrdered, ListChecks, Quote, Code2,
 } from 'lucide-react';
 import { ragRecommend } from '../lib/context-engine';
@@ -34,6 +36,7 @@ import { WRITING_FONT_FAMILIES } from '../lib/typography';
 import ModelPicker from './ModelPicker';
 import { PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { useI18n } from '../lib/useI18n';
+import DesktopTtsControls from './DesktopTtsControls';
 
 // ==================== 虚拟分页常量 ====================
 const PAGE_HEIGHT = 1056; // A4 纸 @ 96dpi
@@ -134,6 +137,30 @@ function focusMountedEditor(targetEditor) {
     return true;
 }
 
+function resetEditorDocumentHistory(targetEditor) {
+    const view = getMountedEditorView(targetEditor);
+    if (!view) return false;
+
+    const currentState = view.state;
+    try {
+        // Recreate plugin state around the already-loaded document. ProseMirror's
+        // history plugin has no public "clear" command; a no-op transaction with
+        // addToHistory=false does not clear earlier steps and allows cross-document undo.
+        const isolatedState = EditorState.create({
+            schema: currentState.schema,
+            doc: currentState.doc,
+            selection: currentState.selection,
+            storedMarks: currentState.storedMarks,
+            plugins: currentState.plugins,
+        });
+        view.updateState(isolatedState);
+        return undoDepth(view.state) === 0 && redoDepth(view.state) === 0;
+    } catch (error) {
+        console.error('Failed to isolate editor history for the loaded chapter:', error);
+        return false;
+    }
+}
+
 const MAX_PASTE_BLANK_RUN = 8;
 const PRESERVED_PASTE_BLANK_RUN = 4;
 
@@ -221,7 +248,8 @@ function restoreEditorPositionSnapshot(targetEditor, workId, chapterId, containe
 }
 
 const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-default', onUpdate, editable = true, onAiRequest, onArchiveGeneration, chapterNumberingIgnored = false, onToggleSpecialChapter, onSplitChapter, onMergeNextChapter, contextItems, contextSelection, setContextSelection }, ref) {
-    const { text } = useI18n();
+    const { text, language } = useI18n();
+    const currentLineHighlight = useAppStore((state) => state.currentLineHighlight);
     const clipPathId = useId();
     const debounceRef = useRef(null);
     const positionSaveTimerRef = useRef(null);
@@ -235,6 +263,9 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
     const containerRef = useRef(null);
     const workspaceRef = useRef(null);
     const normalizedWorkId = workId || 'work-default';
+    // This tracks the document actually mounted in ProseMirror, not the newest
+    // React props. During a chapter switch those differ for one render/effect turn.
+    const loadedDocumentTargetRef = useRef({ workId: normalizedWorkId, chapterId });
     const latestPositionTargetRef = useRef({ workId: normalizedWorkId, chapterId });
 
     useEffect(() => {
@@ -275,19 +306,22 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
         if (!targetEditor) return null;
         const html = targetEditor.getHTML();
         const text = targetEditor.getText();
+        const loadedTarget = loadedDocumentTargetRef.current;
         return {
-            chapterId,
+            chapterId: loadedTarget.chapterId,
+            workId: loadedTarget.workId,
             html,
             text,
             wordCount: text.replace(/\s/g, '').length,
         };
-    }, [chapterId]);
+    }, []);
 
     const queueSave = useCallback((payload) => {
         if (!payload || !onUpdate) return Promise.resolve({ changed: false });
 
         const saveKey = JSON.stringify({
             chapterId: payload.chapterId || null,
+            workId: payload.workId || null,
             html: payload.html || '',
             wordCount: payload.wordCount || 0,
         });
@@ -425,6 +459,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
             RemarkMark,
             slashExtension,
             SearchHighlightExtension,
+            CursorAidExtension,
         ],
         content: content || '',
         editable,
@@ -558,20 +593,36 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
 
         if (chapterChanged) {
             flushCurrentEditorPosition(editor, prevChapterIdRef.current, prevWorkIdRef.current);
-            // 章节切换：清理旧防抖定时器，防止旧章节的延迟保存触发
+            // 切章前保存旧章节最后一批输入。
             if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
                 debounceRef.current = null;
+                const outgoingPayload = buildSavePayload(editor);
+                queueSave(outgoingPayload).catch(error => {
+                    console.error('Failed to flush outgoing chapter before switch:', error);
+                });
             }
             prevChapterIdRef.current = chapterId;
             prevWorkIdRef.current = normalizedWorkId;
             // 设置静默标记，阻止 setContent 触发 onUpdate → saveChapters
             isLoadingContentRef.current = true;
             editor.commands.setContent(content || '', false);
-            // 清空撤销历史，避免跨章节 undo
-            const { tr } = editor.state;
-            editor.view.dispatch(tr.setMeta('addToHistory', false));
+            loadedDocumentTargetRef.current = { workId: normalizedWorkId, chapterId };
+            const historyIsolated = resetEditorDocumentHistory(editor);
             isLoadingContentRef.current = false;
+            if (!historyIsolated) {
+                // Fail closed: an editor with unverified cross-chapter history
+                // must not accept an undo that could replace the whole chapter.
+                editor.setEditable(false);
+                useAppStore.getState().showToast?.(
+                    language === 'en'
+                        ? 'Chapter undo history could not be isolated. Editing was paused to protect your content; please reload.'
+                        : language === 'ru'
+                            ? 'Не удалось изолировать историю отмены главы. Редактирование приостановлено для защиты текста; перезагрузите приложение.'
+                            : '章节撤销历史隔离失败。为保护内容，编辑器已暂停，请刷新后继续。',
+                    'error',
+                );
+            }
             restoredPositionKeyRef.current = null;
             restoreCurrentEditorPosition(editor, chapterId, normalizedWorkId);
             return;
@@ -587,6 +638,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
             if (Math.abs(content.length - currentHtml.length) > 50 || !currentHtml.includes(content.substring(0, 50))) {
                 isLoadingContentRef.current = true;
                 editor.commands.setContent(content || '', false);
+                resetEditorDocumentHistory(editor);
                 isLoadingContentRef.current = false;
             }
         }
@@ -594,7 +646,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
         if (restoredPositionKeyRef.current !== currentIdentity) {
             restoreCurrentEditorPosition(editor, chapterId, normalizedWorkId);
         }
-    }, [chapterId, content, editor, flushCurrentEditorPosition, normalizedWorkId, restoreCurrentEditorPosition]);
+    }, [buildSavePayload, chapterId, content, editor, flushCurrentEditorPosition, language, normalizedWorkId, queueSave, restoreCurrentEditorPosition]);
 
     useEffect(() => {
         if (!editor) return;
@@ -796,7 +848,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
 
                     {/* ===== 文字层（clipPath 严格裁切到页面区域）===== */}
                     <div
-                        className="pages-fg-layer"
+                        className={`pages-fg-layer${currentLineHighlight ? ' cursor-aid-line-on' : ''}`}
                         style={{
                             minHeight: totalWorkspaceHeight,
                             clipPath: `url(#${clipPathId})`,
@@ -822,7 +874,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
             </div>
             <FindBar editor={editor} visible={findBarVisible} onClose={() => setFindBarVisible(false)} />
             <InlineAI editor={editor} onAiRequest={onAiRequest} onArchiveGeneration={onArchiveGeneration} contextItems={contextItems} contextSelection={contextSelection} setContextSelection={setContextSelection} />
-            <StatusBar editor={editor} pageCount={pageCount} />
+            <StatusBar editor={editor} pageCount={pageCount} chapterId={chapterId} />
         </>
     );
 });
@@ -2299,7 +2351,6 @@ function EditorToolbar({ editor, margins, setMargins, chapterNumberingIgnored = 
             {/* 嵌入模型快切 */}
             <ModelPicker target="embed" dropDirection="down" />
 
-            <div className="toolbar-divider" />
 
             {onToggleSpecialChapter && (
                 <>
@@ -2513,15 +2564,15 @@ function EditorToolbar({ editor, margins, setMargins, chapterNumberingIgnored = 
                 )}
             </div>
 
-            {/* 📄 页面边距 */}
+            {/* 页面边距 */}
             <div className="toolbar-dropdown-wrap" onClick={e => e.stopPropagation()}>
                 <button
                     className={`toolbar-btn ${showMargins ? 'active' : ''}`}
                     onClick={e => { closeAll(); setDropPos(getDropdownPos(e.currentTarget, 'right')); setShowMargins(!showMargins); }}
                     title={text('页面设置', 'Page settings', 'Настройки страницы')}
-                    style={{ fontSize: 12 }}
                 >
-                    📄 <span className="dropdown-arrow">▾</span>
+                    <FileCog size={16} strokeWidth={2} />
+                    <span className="dropdown-arrow">▾</span>
                 </button>
                 {showMargins && (
                     <div className="typeset-popover" style={{ position: 'fixed', ...dropPos, zIndex: 9999 }}>
@@ -2571,7 +2622,7 @@ function EditorToolbar({ editor, margins, setMargins, chapterNumberingIgnored = 
 }
 
 // ==================== 状态栏 ====================
-function StatusBar({ editor, pageCount }) {
+function StatusBar({ editor, pageCount, chapterId }) {
     const { text } = useI18n();
     if (!editor) return null;
 
@@ -2585,6 +2636,7 @@ function StatusBar({ editor, pageCount }) {
                 <span>{words} {text('字', 'words', 'слов')}</span>
                 <span>{chars} {text('字符', 'chars', 'симв.')}</span>
                 <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{text('共', 'Total', 'Всего')} {pageCount} {text('页', 'pages', 'стр.')}</span>
+                <DesktopTtsControls editor={editor} chapterId={chapterId} />
             </div>
             <div className="status-bar-right">
                 <span className="status-bar-shortcut">{text('Ctrl+J AI助手', 'Ctrl+J AI Assistant', 'Ctrl+J ИИ-помощник')}</span>

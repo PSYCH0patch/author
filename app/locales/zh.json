@@ -549,8 +549,8 @@
         "saveProfileBtn": "保存当前配置",
         "saveProfilePlaceholder": "方案名称",
         "saveBtn": "保存",
-        "howToGetKey": "如何获取 API Key？",
-        "keyGuide": "• 智谱AI：访问 open.bigmodel.cn 注册并创建 Key\n• DeepSeek：访问 platform.deepseek.com\n• Google Gemini：访问 aistudio.google.com/apikey 获取免费 Key\n• SiliconFlow：访问 siliconflow.cn（新用户送额度）\n• Moonshot：访问 platform.moonshot.cn",
+        "howToGetKey": "如何配置 API？",
+        "keyGuide": "• 智谱AI：访问 open.bigmodel.cn 注册并创建 Key\n• DeepSeek：访问 platform.deepseek.com\n• 国际兼容端点：填写有权使用的中转或自建地址，不内置国外平台直连地址\n• SiliconFlow：访问 siliconflow.cn（新用户送额度）\n• Moonshot：访问 platform.moonshot.cn",
         "networkError": "网络连接失败",
         "fetchModelsFailed": "拉取模型列表失败",
         "fetchEmbedModelsFailed": "拉取向量模型列表失败",
@@ -629,7 +629,13 @@
         "chatSendEnterDesc": "Enter 发送消息，Shift + Enter 换行",
         "chatSendCtrlEnter": "Ctrl / ⌘ + Enter 发送",
         "chatSendCtrlEnterDesc": "Enter 直接换行，Ctrl / ⌘ + Enter 发送消息",
-        "chatSendShortcutHint": "此设置同时作用于 AI 对话小输入框和全屏输入框。"
+        "chatSendShortcutHint": "此设置同时作用于 AI 对话小输入框和全屏输入框。",
+        "currentLineHighlightLabel": "当前段落高亮",
+        "currentLineHighlightOn": "启用",
+        "currentLineHighlightOnDesc": "高亮当前段落，失焦时显示光标位置",
+        "currentLineHighlightOff": "禁用",
+        "currentLineHighlightOffDesc": "不显示底色与失焦光标",
+        "currentLineHighlightHint": "用很淡的底色标出正在编辑的段落；编辑器失焦后，还会在原处显示一条细光标，方便回到上次位置。"
     },
     "bookInfo": {
         "intro": "这些信息帮助AI理解你的作品定位和风格，即使只填一两项也会大幅提升AI质量。",

@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { ClipboardList, Bot, Sparkles, XCircle, FolderOpen, Download, CheckCircle2 } from 'lucide-react';
 import { getProjectSettings } from '../lib/settings';
 import { useI18n } from '../lib/useI18n';
+import { resolveAiEndpoint } from '../lib/ai-provider-compat';
 
 // 字段标签（用于展示摘要）
 const FIELD_LABELS = {
@@ -117,11 +118,8 @@ export default function SettingsConflictModal({ conflicts, noConflicts, onConfir
 
         try {
             const { apiConfig } = getProjectSettings();
-            const pType = apiConfig?.providerType || apiConfig?.provider;
-            const apiEndpoint = ['gemini-native', 'custom-gemini'].includes(pType) ? '/api/ai/gemini'
-                : pType === 'openai-responses' ? '/api/ai/responses'
-                    : (['claude', 'custom-claude'].includes(pType) || apiConfig?.apiFormat === 'anthropic') ? '/api/ai/claude'
-                        : '/api/ai';
+            const apiEndpoint = resolveAiEndpoint(apiConfig);
+
 
             const existingFields = JSON.stringify(conflict.existing.content || {}, null, 2);
             const importedFields = JSON.stringify(conflict.imported.content || {}, null, 2);

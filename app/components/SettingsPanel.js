@@ -7,7 +7,7 @@ import {
     ClipboardList, Ruler, Upload, Download, Trash2, X, Maximize2, Minimize2,
     FileText, Sparkles, Search, Coins, Plug, Radio, RefreshCw, CheckCircle2,
     XCircle, AlertTriangle, Globe2, Shuffle, Eye, EyeOff, Ban, Pencil, FolderOpen,
-    Bell, RotateCcw, Monitor, CircleDot, Smartphone, Clapperboard,
+    Bell, RotateCcw, CircleDot, Smartphone, Clapperboard,
     Heart, Star, Shield, Zap, Feather, Compass, Flag, Tag, Layers,
     Bookmark, Crown, Flame, Lightbulb, Music, Palette, Sword, Target,
     Moon, Sun, Cloud, CloudOff, TreePine, Mountain, Waves, Building, Car,
@@ -1456,6 +1456,8 @@ function mergeFetchedAndSavedModels(fetchedModels, savedModels) {
     return merged;
 }
 
+const FOREIGN_COMPATIBLE_PROVIDER_KEYS = ['openai', 'claude', 'gemini', 'gemini-native', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github', 'openrouter'];
+
 export const PROVIDERS = [
     // === 国内供应商 ===
     { key: 'zhipu', label: '智谱AI (GLM)', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-4-flash', 'glm-4-plus', 'glm-4-long', 'glm-4'] },
@@ -1471,25 +1473,22 @@ export const PROVIDERS = [
     { key: 'minimax', label: 'MiniMax', baseUrl: 'https://api.minimax.chat/v1', anthropicBaseUrl: 'https://api.minimaxi.com/anthropic', models: ['MiniMax-M2.5', 'MiniMax-M2.1', 'MiniMax-M2.5-highspeed'], supportedFormats: ['openai', 'anthropic'], defaultFormat: 'openai', allowCustomModel: true },
     { key: 'siliconflow', label: 'SiliconFlow (硅基流动)', baseUrl: 'https://api.siliconflow.cn/v1', models: ['deepseek-ai/DeepSeek-V3', 'Qwen/Qwen2.5-72B-Instruct', 'THUDM/glm-4-9b-chat'] },
     // === 国际供应商 ===
-    { key: 'openai', label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'o3-mini'] },
-    { key: 'claude', label: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com', models: ['claude-sonnet-4-20250514', 'claude-3-7-sonnet-20250219', 'claude-3-5-haiku-20241022'], apiFormat: 'anthropic' },
-    { key: 'gemini', label: 'Gemini (OpenAI兼容)', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'] },
-    { key: 'gemini-native', label: 'Gemini（原生格式）', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'] },
-    { key: 'openai-responses', label: 'OpenAI Responses', baseUrl: 'https://api.openai.com/v1', models: [] },
-    { key: 'groq', label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'] },
-    { key: 'mistral', label: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'open-mistral-nemo'] },
-    { key: 'cohere', label: 'Cohere', baseUrl: 'https://api.cohere.com/v2', models: ['command-r-plus', 'command-r', 'command-light'] },
-    { key: 'together', label: 'Together AI', baseUrl: 'https://api.together.xyz/v1', models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo', 'deepseek-ai/DeepSeek-R1'] },
-    { key: 'perplexity', label: 'Perplexity', baseUrl: 'https://api.perplexity.ai', models: ['sonar-pro', 'sonar', 'sonar-reasoning-pro', 'sonar-reasoning'] },
-    { key: 'xai', label: 'xAI (Grok)', baseUrl: 'https://api.x.ai/v1', models: ['grok-3', 'grok-3-mini', 'grok-2'] },
-    { key: 'cerebras', label: 'Cerebras', baseUrl: 'https://api.cerebras.ai/v1', models: ['llama-3.3-70b', 'llama-3.1-8b'] },
-    { key: 'github', label: 'GitHub Models', baseUrl: 'https://models.inference.ai.azure.com', models: ['gpt-4o', 'gpt-4o-mini', 'Phi-3.5-MoE-instruct'] },
+    { key: 'openai', label: 'OpenAI 兼容', baseUrl: '', models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'o3-mini'] },
+    { key: 'claude', label: 'Claude 兼容', baseUrl: '', models: ['claude-sonnet-4-20250514', 'claude-3-7-sonnet-20250219', 'claude-3-5-haiku-20241022'], apiFormat: 'anthropic' },
+    { key: 'gemini', label: 'Gemini 兼容', baseUrl: '', models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'] },
+    { key: 'gemini-native', label: 'Gemini 原生', baseUrl: '', models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'], hint: '原生 generateContent 协议，支持 Google 搜索 grounding 与代码执行。地址通常以 /v1beta 结尾，自行填写' },
+    { key: 'groq', label: 'Groq 兼容', baseUrl: '', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'] },
+    { key: 'mistral', label: 'Mistral 兼容', baseUrl: '', models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'open-mistral-nemo'] },
+    { key: 'cohere', label: 'Cohere 兼容', baseUrl: '', models: ['command-r-plus', 'command-r', 'command-light'] },
+    { key: 'together', label: 'Together AI 兼容', baseUrl: '', models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo', 'deepseek-ai/DeepSeek-R1'] },
+    { key: 'perplexity', label: 'Perplexity 兼容', baseUrl: '', models: ['sonar-pro', 'sonar', 'sonar-reasoning-pro', 'sonar-reasoning'] },
+    { key: 'xai', label: 'xAI (Grok) 兼容', baseUrl: '', models: ['grok-3', 'grok-3-mini', 'grok-2'] },
+    { key: 'cerebras', label: 'Cerebras 兼容', baseUrl: '', models: ['llama-3.3-70b', 'llama-3.1-8b'] },
+    { key: 'github', label: 'GitHub Models 兼容', baseUrl: '', models: ['gpt-4o', 'gpt-4o-mini', 'Phi-3.5-MoE-instruct'] },
     // === 聚合/转发 ===
-    { key: 'openrouter', label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', models: ['google/gemini-2.5-flash-preview', 'anthropic/claude-sonnet-4', 'openai/gpt-4o', 'deepseek/deepseek-chat-v3-0324', 'meta-llama/llama-4-maverick'] },
+    { key: 'openrouter', label: 'OpenRouter 兼容', baseUrl: '', models: ['google/gemini-2.5-flash-preview', 'anthropic/claude-sonnet-4', 'openai/gpt-4o', 'deepseek/deepseek-chat-v3-0324', 'meta-llama/llama-4-maverick'] },
     // === 自定义 ===
-    { key: 'custom', label: '自定义 (OpenAI兼容)', baseUrl: '', models: [] },
-    { key: 'custom-gemini', label: '自定义 (Gemini格式)', baseUrl: '', models: [] },
-    { key: 'custom-claude', label: '自定义 (Claude格式)', baseUrl: '', models: [] },
+    { key: 'custom', label: '自定义兼容端点', baseUrl: '', models: [] },
 ];
 
 const PROVIDER_LABELS = {
@@ -1505,23 +1504,20 @@ const PROVIDER_LABELS = {
     baidu: ['百度文心', 'Baidu Wenxin', 'Baidu Wenxin'],
     minimax: ['MiniMax', 'MiniMax', 'MiniMax'],
     siliconflow: ['SiliconFlow (硅基流动)', 'SiliconFlow', 'SiliconFlow'],
-    openai: ['OpenAI', 'OpenAI', 'OpenAI'],
-    claude: ['Claude (Anthropic)', 'Claude (Anthropic)', 'Claude (Anthropic)'],
-    gemini: ['Gemini (OpenAI兼容)', 'Gemini (OpenAI-compatible)', 'Gemini (OpenAI-compatible)'],
-    'gemini-native': ['Gemini（原生格式）', 'Gemini (Native)', 'Gemini (Native)'],
-    'openai-responses': ['OpenAI Responses', 'OpenAI Responses', 'OpenAI Responses'],
-    groq: ['Groq', 'Groq', 'Groq'],
-    mistral: ['Mistral', 'Mistral', 'Mistral'],
-    cohere: ['Cohere', 'Cohere', 'Cohere'],
-    together: ['Together AI', 'Together AI', 'Together AI'],
-    perplexity: ['Perplexity', 'Perplexity', 'Perplexity'],
-    xai: ['xAI (Grok)', 'xAI (Grok)', 'xAI (Grok)'],
-    cerebras: ['Cerebras', 'Cerebras', 'Cerebras'],
-    github: ['GitHub Models', 'GitHub Models', 'GitHub Models'],
-    openrouter: ['OpenRouter', 'OpenRouter', 'OpenRouter'],
-    custom: ['自定义 (OpenAI兼容)', 'Custom (OpenAI-compatible)', 'Custom (OpenAI-compatible)'],
-    'custom-gemini': ['自定义 (Gemini格式)', 'Custom (Gemini format)', 'Custom (Gemini format)'],
-    'custom-claude': ['自定义 (Claude格式)', 'Custom (Claude format)', 'Custom (Claude format)'],
+    openai: ['OpenAI 兼容', 'OpenAI-compatible', 'OpenAI-compatible'],
+    claude: ['Claude 兼容', 'Claude-compatible', 'Claude-compatible'],
+    gemini: ['Gemini 兼容', 'Gemini-compatible', 'Gemini-compatible'],
+    'gemini-native': ['Gemini 原生', 'Gemini (Native)', 'Gemini (Native)'],
+    groq: ['Groq 兼容', 'Groq-compatible', 'Groq-compatible'],
+    mistral: ['Mistral 兼容', 'Mistral-compatible', 'Mistral-compatible'],
+    cohere: ['Cohere 兼容', 'Cohere-compatible', 'Cohere-compatible'],
+    together: ['Together AI 兼容', 'Together AI-compatible', 'Together AI-compatible'],
+    perplexity: ['Perplexity 兼容', 'Perplexity-compatible', 'Perplexity-compatible'],
+    xai: ['xAI (Grok) 兼容', 'xAI (Grok)-compatible', 'xAI (Grok)-compatible'],
+    cerebras: ['Cerebras 兼容', 'Cerebras-compatible', 'Cerebras-compatible'],
+    github: ['GitHub Models 兼容', 'GitHub Models-compatible', 'GitHub Models-compatible'],
+    openrouter: ['OpenRouter 兼容', 'OpenRouter-compatible', 'OpenRouter-compatible'],
+    custom: ['自定义兼容端点', 'Custom compatible endpoint', 'Custom compatible endpoint'],
 };
 
 export function getProviderLabel(provider, text = (zh) => zh) {
@@ -1531,11 +1527,19 @@ export function getProviderLabel(provider, text = (zh) => zh) {
     return labels ? text(labels[0], labels[1], labels[2]) : (fallback || key || '');
 }
 
+function getDefaultEmbedModel(providerKey) {
+    if (providerKey === 'zhipu') return 'embedding-3';
+    if (providerKey === 'bailian') return 'text-embedding-v4';
+    if (providerKey === 'openai') return 'text-embedding-3-small';
+    if (providerKey === 'gemini') return 'text-embedding-004';
+    return '';
+}
+
 function getProviderGroupLabel(group, text = (zh) => zh) {
     const labels = {
         cn: text('🇨🇳 国内', 'CN', 'Китай'),
-        global: text('国际', 'International', 'Международные'),
-        aggregate: text('聚合', 'Aggregators', 'Агрегаторы'),
+        global: text('国际兼容', 'International compatible', 'Международные совместимые'),
+        aggregate: text('聚合兼容', 'Aggregator compatible', 'Совместимые агрегаторы'),
         custom: text('自定义', 'Custom', 'Пользовательские'),
     };
     return labels[group] || group;
@@ -1548,6 +1552,7 @@ function PreferencesForm() {
         sidebarPushMode, setSidebarPushMode,
         aiSidebarPushMode, setAiSidebarPushMode,
         chatSendShortcutMode, setChatSendShortcutMode,
+        currentLineHighlight, setCurrentLineHighlight,
         writingFontFamily, setWritingFontFamily,
         uiFontSize, setUiFontSize,
         setShowSyncGuideModal,
@@ -2124,6 +2129,30 @@ function PreferencesForm() {
                 </div>
             </div>
 
+            {/* 当前段落高亮 */}
+            <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                    <Eye size={14} /> {t('preferences.currentLineHighlightLabel')}
+                </label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <button style={layoutBtnStyle(!currentLineHighlight)} onClick={() => setCurrentLineHighlight(false)}>
+                        <div style={{ fontSize: 13, fontWeight: !currentLineHighlight ? 600 : 400, color: !currentLineHighlight ? 'var(--accent)' : 'var(--text-primary)', marginBottom: 3 }}>
+                            {t('preferences.currentLineHighlightOff')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('preferences.currentLineHighlightOffDesc')}</div>
+                    </button>
+                    <button style={layoutBtnStyle(currentLineHighlight)} onClick={() => setCurrentLineHighlight(true)}>
+                        <div style={{ fontSize: 13, fontWeight: currentLineHighlight ? 600 : 400, color: currentLineHighlight ? 'var(--accent)' : 'var(--text-primary)', marginBottom: 3 }}>
+                            {t('preferences.currentLineHighlightOn')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('preferences.currentLineHighlightOnDesc')}</div>
+                    </button>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.5 }}>
+                    {t('preferences.currentLineHighlightHint')}
+                </div>
+            </div>
+
             {/* AI 对话发送快捷键 */}
             <div style={{ marginBottom: 24 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 12 }}>
@@ -2226,6 +2255,17 @@ function ApiConfigForm({ data, onChange }) {
                 [next.provider]: { ...next.providerConfigs[next.provider], [field]: value },
             };
         }
+        const embedFieldMap = { embedApiKey: 'apiKey', embedBaseUrl: 'baseUrl', embedModel: 'model' };
+        const embedConfigField = embedFieldMap[field];
+        if (embedConfigField && next.embedProvider) {
+            next.embedProviderConfigs = {
+                ...(next.embedProviderConfigs || {}),
+                [next.embedProvider]: {
+                    ...(next.embedProviderConfigs?.[next.embedProvider] || {}),
+                    [embedConfigField]: value,
+                },
+            };
+        }
         onChange(next);
     };
     const [testStatus, setTestStatus] = useState(null);
@@ -2311,7 +2351,7 @@ function ApiConfigForm({ data, onChange }) {
         // 2. 从 providerConfigs 加载目标供应商已保存的配置
         const saved = configs[providerKey] || {};
         const defaultFormat = provider.defaultFormat || 'openai';
-        const isCustomTarget = ['custom', 'custom-gemini', 'custom-claude'].includes(providerType);
+        const isCustomTarget = providerType === 'custom';
 
         const newConfig = {
             ...data,
@@ -2394,12 +2434,14 @@ function ApiConfigForm({ data, onChange }) {
     const instanceCfg = data.providerConfigs?.[data.provider];
     const resolvedProviderType = instanceCfg?.providerType || data.provider;
     const currentProvider = PROVIDERS.find(p => p.key === data.provider) || PROVIDERS.find(p => p.key === resolvedProviderType) || PROVIDERS[7];
-    const isCustom = ['custom', 'custom-gemini', 'custom-claude'].includes(resolvedProviderType);
+    const isCustom = resolvedProviderType === 'custom';
+    const isForeignCompatible = FOREIGN_COMPATIBLE_PROVIDER_KEYS.includes(resolvedProviderType);
+    const requiresExplicitBaseUrl = isCustom || isForeignCompatible;
 
     // 嵌入模型供应商
-    const EMBED_EXCLUDED = ['deepseek', 'moonshot', 'siliconflow', 'openai-responses', 'openrouter', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github', 'stepfun', 'volcengine', 'minimax', 'yi', 'baidu'];
+    const EMBED_EXCLUDED = ['deepseek', 'moonshot', 'siliconflow', 'claude', 'openrouter', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github', 'stepfun', 'volcengine', 'minimax', 'yi', 'baidu'];
     const currentEmbedProvider = PROVIDERS.find(p => p.key === data.embedProvider) || PROVIDERS.find(p => p.key === 'zhipu') || PROVIDERS[0];
-    const isEmbedCustom = ['custom', 'custom-gemini', 'custom-claude'].includes(data.embedProvider);
+    const isEmbedCustom = data.embedProvider === 'custom';
     const handleEmbedProviderChange = (providerKey) => {
         const provider = PROVIDERS.find(p => p.key === providerKey);
         if (!provider) return;
@@ -2408,6 +2450,7 @@ function ApiConfigForm({ data, onChange }) {
         const configs = { ...(data.embedProviderConfigs || {}) };
         if (data.embedProvider) {
             configs[data.embedProvider] = {
+                ...(configs[data.embedProvider] || {}),
                 apiKey: data.embedApiKey || '',
                 baseUrl: data.embedBaseUrl || '',
                 model: data.embedModel || '',
@@ -2416,7 +2459,7 @@ function ApiConfigForm({ data, onChange }) {
 
         // 2. 从 embedProviderConfigs 加载目标供应商已保存的配置
         const saved = configs[providerKey] || {};
-        const isCustom = ['custom', 'custom-gemini', 'custom-claude'].includes(providerKey);
+        const isCustom = providerKey === 'custom';
 
         onChange({
             ...data,
@@ -2424,7 +2467,7 @@ function ApiConfigForm({ data, onChange }) {
             embedProvider: providerKey,
             embedApiKey: saved.apiKey || '',
             embedBaseUrl: isCustom ? (saved.baseUrl || '') : (saved.baseUrl || provider.baseUrl || ''),
-            embedModel: saved.model || (isCustom ? '' : (providerKey === 'zhipu' ? 'embedding-3' : 'text-embedding-v3-small')),
+            embedModel: saved.model || (isCustom ? '' : getDefaultEmbedModel(providerKey)),
         });
         setFetchedEmbedModels(null);
     };
@@ -2522,9 +2565,9 @@ function ApiConfigForm({ data, onChange }) {
                     />
                     {[
                         { group: 'cn', keys: ['zhipu', 'deepseek', 'bailian', 'volcengine', 'moonshot', 'stepfun', 'yi', 'baichuan', 'hunyuan', 'baidu', 'minimax', 'siliconflow'] },
-                        { group: 'global', keys: ['openai', 'claude', 'gemini', 'gemini-native', 'openai-responses', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github'] },
+                        { group: 'global', keys: ['openai', 'claude', 'gemini', 'gemini-native', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github'] },
                         { group: 'aggregate', keys: ['openrouter'] },
-                        { group: 'custom', keys: ['custom', 'custom-gemini', 'custom-claude'] },
+                        { group: 'custom', keys: ['custom'] },
                     ].map(section => {
                         const items = section.keys
                             .map(k => PROVIDERS.find(p => p.key === k))
@@ -2645,8 +2688,10 @@ function ApiConfigForm({ data, onChange }) {
                     </div>
 
                     {/* 供应商特定提示 */}
-                    {resolvedProviderType === 'gemini-native' && (
-                        <div className="provider-hint">{t('apiConfig.geminiNativeHint')}</div>
+                    {isForeignCompatible && (
+                        <div className="provider-hint">
+                            {text('仅提供协议兼容入口。请填写你有权使用的中转或自建 API 地址；应用不内置该国外平台的官方直连地址。', 'Only protocol-compatible access is provided. Enter an authorized relay or self-hosted API URL; no official direct foreign-provider URL is built in.', 'Доступен только совместимый протокол. Укажите разрешенный relay или собственный API URL.')}
+                        </div>
                     )}
                     {resolvedProviderType === 'volcengine' && (
                         <div className="provider-hint">{text('火山引擎需要先在控制台创建「推理接入点」，然后将 endpoint_id（如 ep-xxxx）填入模型字段。支持豆包系列模型。', 'For Volcengine, create an inference endpoint in the console first, then enter its endpoint_id, such as ep-xxxx, in the model field. Doubao models are supported.', 'Для Volcengine сначала создайте inference endpoint в консоли, затем укажите endpoint_id, например ep-xxxx, в поле модели. Поддерживаются модели Doubao.')}</div>
@@ -2714,7 +2759,14 @@ function ApiConfigForm({ data, onChange }) {
                     )}
 
                     {/* API 地址 */}
-                    <FieldInput label={isCustom ? t('apiConfig.apiAddress') : t('apiConfig.apiAddressAuto')} value={data.baseUrl} onChange={v => update('baseUrl', v)} placeholder={resolvedProviderType === 'custom-gemini' ? 'https://generativelanguage.googleapis.com/v1beta' : resolvedProviderType === 'custom-claude' ? 'https://api.anthropic.com' : t('apiConfig.apiAddressPlaceholder')} />
+                    <FieldInput
+                        label={requiresExplicitBaseUrl ? t('apiConfig.apiAddress') : t('apiConfig.apiAddressAuto')}
+                        value={data.baseUrl}
+                        onChange={v => update('baseUrl', v)}
+                        placeholder={resolvedProviderType === 'claude'
+                            ? 'https://your-relay.example.com'
+                            : 'https://your-relay.example.com/v1'}
+                    />
 
                     {/* 代理地址 */}
                     <FieldInput label={<><Globe size={13} style={{ marginRight: 4, verticalAlign: 'text-bottom' }} />{text('代理地址（可选）', 'Proxy URL (optional)', 'Адрес прокси (необязательно)')}</>} value={data.proxyUrl || ''} onChange={v => update('proxyUrl', v)} placeholder="http://127.0.0.1:7890" />
@@ -2724,8 +2776,8 @@ function ApiConfigForm({ data, onChange }) {
                             {t('apiConfig.model')}
                         </label>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input className="modal-input" style={{ marginBottom: 0, flex: 1 }} value={data.model || ''} onChange={e => update('model', e.target.value)} placeholder={isCustom ? (resolvedProviderType === 'custom-gemini' ? text('例如：gemini-2.0-flash', 'e.g. gemini-2.0-flash', 'например: gemini-2.0-flash') : resolvedProviderType === 'custom-claude' ? text('例如：claude-sonnet-4-20250514', 'e.g. claude-sonnet-4-20250514', 'например: claude-sonnet-4-20250514') : text('例如：gpt-4o-mini', 'e.g. gpt-4o-mini', 'например: gpt-4o-mini')) : text('选择或输入模型名称', 'Select or enter a model name', 'Выберите или введите имя модели')} />
-                            {(isCustom ? (data.apiKey && data.baseUrl) : data.apiKey) && (
+                            <input className="modal-input" style={{ marginBottom: 0, flex: 1 }} value={data.model || ''} onChange={e => update('model', e.target.value)} placeholder={isCustom ? text('例如：gpt-4o-mini', 'e.g. gpt-4o-mini', 'например: gpt-4o-mini') : text('选择或输入模型名称', 'Select or enter a model name', 'Выберите или введите имя модели')} />
+                            {(requiresExplicitBaseUrl ? (data.apiKey && data.baseUrl) : data.apiKey) && (
                                 <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => { if (Array.isArray(fetchedModels) && fetchedModels.length > 0) { setShowModelModal(true); setModelSearch(''); } else { handleFetchModels(); } }} disabled={fetchedModels === 'loading'}>
                                     {fetchedModels === 'loading' ? text('获取中…', 'Fetching...', 'Загрузка...') : Array.isArray(fetchedModels) && fetchedModels.length > 0 ? text(`模型列表 (${fetchedModels.length})`, `Model List (${fetchedModels.length})`, `Список моделей (${fetchedModels.length})`) : text('获取模型列表', 'Fetch Model List', 'Получить список моделей')}
                                 </button>
@@ -2953,7 +3005,7 @@ function ApiConfigForm({ data, onChange }) {
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, paddingLeft: 22 }}>
                             {t('apiConfig.enableSearchDesc') || '让 AI 搜索互联网获取最新信息，搜索来源会显示在回复中'}
                         </div>
-                        {data.tools?.searchEnabled && ['openai', 'openai-responses', 'custom', 'custom-gemini'].includes(data.provider) && (
+                        {data.tools?.searchEnabled && resolvedProviderType === 'openai' && (
                             <div style={{ paddingLeft: 22, marginBottom: 6 }}>
                                 <div style={{ display: 'flex', gap: 6 }}>
                                     {[
@@ -2963,14 +3015,14 @@ function ApiConfigForm({ data, onChange }) {
                                         <button key={opt.key} style={{ padding: '4px 10px', border: (data.tools?.searchMode || 'builtin') === opt.key ? '2px solid var(--accent)' : '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', background: (data.tools?.searchMode || 'builtin') === opt.key ? 'var(--accent-light)' : 'var(--bg-primary)', cursor: 'pointer', fontSize: 11, fontWeight: (data.tools?.searchMode || 'builtin') === opt.key ? 600 : 400, color: (data.tools?.searchMode || 'builtin') === opt.key ? 'var(--accent)' : 'var(--text-primary)', transition: 'all 0.15s' }} onClick={() => onChange({ ...data, tools: { ...(data.tools || {}), searchMode: opt.key } })}>{opt.label}</button>
                                     ))}
                                 </div>
-                                {['custom', 'custom-gemini'].includes(data.provider)
+                                {resolvedProviderType === 'custom'
                                     ? <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>自定义供应商仅支持 Function Calling (外部搜索) 方式</div>
                                     : <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{t('apiConfig.searchModeHint') || '内置搜索速度更快，外部搜索可自定义来源'}</div>
                                 }
                             </div>
                         )}
                         {data.tools?.searchEnabled && (
-                            (data.tools?.searchMode === 'external' || !['openai', 'openai-responses', 'custom', 'custom-gemini', 'gemini-native'].includes(data.provider)) && (
+                            (data.tools?.searchMode === 'external' || resolvedProviderType !== 'openai') && (
                                 <div style={{ paddingLeft: 22, marginTop: 6 }}>
                                     <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 3 }}>{t('apiConfig.searchTool') || '搜索工具'}</div>
                                     <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
@@ -2991,35 +3043,8 @@ function ApiConfigForm({ data, onChange }) {
                                 </div>
                             )
                         )}
-                        {['gemini-native', 'custom-gemini'].includes(data.provider) && (
-                            <>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)', marginTop: 8 }}>
-                                    <input type="checkbox" checked={data.tools?.codeExecution || false} onChange={e => onChange({ ...data, tools: { ...(data.tools || {}), codeExecution: e.target.checked } })} style={{ margin: 0 }} />
-                                    <Monitor size={13} style={{ marginRight: 4, verticalAlign: 'text-bottom' }} />{t('apiConfig.toolCodeExecution') || 'Code Execution（代码执行）'}
-                                </label>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, paddingLeft: 22 }}>{t('apiConfig.toolCodeExecutionDesc') || '让 AI 编写并运行代码来解决数学计算等问题，回复中会显示代码和执行结果'}</div>
-                            </>
-                        )}
                     </div>
 
-                    {/* Reasoning Effort for OpenAI Responses */}
-                    {resolvedProviderType === 'openai-responses' && (
-                        <div style={{ marginBottom: 12 }}>
-                            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>思考等级 (Reasoning Effort)</label>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                                {[
-                                    { key: 'none', label: '关闭' },
-                                    { key: 'low', label: 'low' },
-                                    { key: 'medium', label: 'medium' },
-                                    { key: 'high', label: 'high' },
-                                    { key: 'xhigh', label: 'xhigh' },
-                                ].map(opt => (
-                                    <button key={opt.key} style={{ padding: '5px 14px', border: (data.reasoningEffort || 'medium') === opt.key ? '2px solid var(--accent)' : '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', background: (data.reasoningEffort || 'medium') === opt.key ? 'var(--accent-light)' : 'var(--bg-primary)', cursor: 'pointer', fontSize: 12, fontWeight: (data.reasoningEffort || 'medium') === opt.key ? 600 : 400, color: (data.reasoningEffort || 'medium') === opt.key ? 'var(--accent)' : 'var(--text-primary)', transition: 'all 0.15s' }} onClick={() => update('reasoningEffort', opt.key)}>{opt.label}</button>
-                                ))}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>控制模型推理深度，“关闭”禁用思维链，默认 Medium，XHigh 质量最高但更慢</div>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -3092,7 +3117,7 @@ function ApiConfigForm({ data, onChange }) {
                     </div>
 
                     {/* 最大输出 Token */}
-                    {data.provider !== 'openai-responses' && (
+                    {(
                         <div style={{ marginBottom: 14 }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 5 }}>
                                 <input type="checkbox" checked={data.enableMaxOutputTokens || false} onChange={e => update('enableMaxOutputTokens', e.target.checked)} style={{ margin: 0 }} />
@@ -3110,7 +3135,7 @@ function ApiConfigForm({ data, onChange }) {
                     )}
 
                     {/* 思考层级 */}
-                    {data.provider !== 'openai-responses' && (
+                    {(
                         <div style={{ marginBottom: 14 }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 5 }}>
                                 <input type="checkbox" checked={data.enableReasoningEffort || false} onChange={e => update('enableReasoningEffort', e.target.checked)} style={{ margin: 0 }} />
@@ -3159,8 +3184,8 @@ function ApiConfigForm({ data, onChange }) {
                         />
                         {[
                             { group: 'cn', keys: ['zhipu', 'bailian', 'hunyuan', 'baichuan', 'siliconflow'] },
-                            { group: 'global', keys: ['openai', 'claude', 'gemini', 'gemini-native'] },
-                            { group: 'custom', keys: ['custom', 'custom-gemini', 'custom-claude'] },
+                            { group: 'global', keys: ['openai', 'gemini'] },
+                            { group: 'custom', keys: ['custom'] },
                         ].map(section => {
                             const items = section.keys
                                 .map(k => PROVIDERS.find(p => p.key === k))
@@ -3206,7 +3231,7 @@ function ApiConfigForm({ data, onChange }) {
                                 {t('apiConfig.embedModel')}
                             </label>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <input className="modal-input" style={{ marginBottom: 0, flex: 1 }} value={data.embedModel || ''} onChange={e => update('embedModel', e.target.value)} placeholder={text('例如：text-embedding-v3-small', 'e.g. text-embedding-v3-small', 'например: text-embedding-v3-small')} />
+                                <input className="modal-input" style={{ marginBottom: 0, flex: 1 }} value={data.embedModel || ''} onChange={e => update('embedModel', e.target.value)} placeholder={data.embedProvider === 'bailian' ? 'text-embedding-v4' : text('例如：embedding-3', 'e.g. embedding-3', 'например: embedding-3')} />
                                 {(data.embedApiKey || data.apiKey) ? (
                                     <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => { if (Array.isArray(fetchedEmbedModels) && fetchedEmbedModels.length > 0) { setShowEmbedModelModal(true); setEmbedModelSearch(''); } else { handleFetchEmbedModels(); } }} disabled={fetchedEmbedModels === 'loading'}>
                                         {fetchedEmbedModels === 'loading' ? text('获取中…', 'Fetching...', 'Загрузка...') : Array.isArray(fetchedEmbedModels) && fetchedEmbedModels.length > 0 ? text(`模型列表 (${fetchedEmbedModels.length})`, `Model List (${fetchedEmbedModels.length})`, `Список моделей (${fetchedEmbedModels.length})`) : text('获取模型列表', 'Fetch Model List', 'Получить список моделей')}

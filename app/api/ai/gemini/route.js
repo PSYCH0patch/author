@@ -14,16 +14,20 @@ export async function POST(request) {
         const proxyUrl = apiConfig?.proxyUrl || '';
 
         const apiKey = rotateKey(apiConfig?.apiKey || process.env.GEMINI_API_KEY);
-        let rawBaseUrl = apiConfig?.baseUrl;
-        if (!rawBaseUrl || rawBaseUrl.includes('open.bigmodel.cn')) {
-            rawBaseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
-        }
-        const baseUrl = rawBaseUrl.replace(/\/$/, '');
+        // 不内置官方默认地址：baseUrl 必须由用户填写（open core 边界）
+        const baseUrl = String(apiConfig?.baseUrl || process.env.GEMINI_BASE_URL || '').trim().replace(/\/+$/, '');
         const model = apiConfig?.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
         if (!apiKey) {
             return new Response(
-                JSON.stringify({ error: '请先配置 API Key。点击左下角 ⚙️ → API配置，填入你的 Gemini Key' }),
+                JSON.stringify({ error: '请先配置 Gemini 原生 API Key' }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
+        if (!baseUrl) {
+            return new Response(
+                JSON.stringify({ error: '请先填写 Gemini 原生 API 地址（通常以 /v1beta 结尾）' }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }

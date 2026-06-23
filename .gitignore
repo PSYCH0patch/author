@@ -2,6 +2,7 @@
 
 # AI agent local config
 .gemini/
+/.claude/
 .codex/
 .codex-remote-attachments/
 
@@ -56,11 +57,15 @@ next-env.d.ts
 /data
 /_standalone
 
+# release/build scratch — installers, update metadata, patches (publish via GitHub Releases, never commit)
+.tmp/
+
 # sensitive config
 mcp_config.json
 
 # internal docs, plans, drafts (any language/naming)
 /docs/
+/AI每日深度简报_*.md
 方案*/
 计划*/
 *草稿*/

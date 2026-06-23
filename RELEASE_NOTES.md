@@ -1,22 +1,27 @@
-## v1.2.44 — 桌面/移动端国际化与云同步稳定性完善
+## v1.2.45 — 新增跨端文字朗读并增强 AI、编辑器与设定集稳定性
 
 ### 中文
 
 #### 桌面端 / Web
 
-- 完善桌面端英文/俄文国际化覆盖，补齐设置集、帮助文档、云同步、作品信息、AI 侧栏、摘要中心、模型选择和错误提示等界面的固定文案。
-- 调整设定集内置分类、服务商列表、主题提示、帮助内容和安全提示词展示，使切换语言后不再残留中文固定文本。
-- 修复编辑器恢复光标位置时 TipTap view 尚未挂载导致的运行时错误，并增强空白编辑区点击后的焦点恢复。
-- 优化 Firebase/便携同步的数据覆盖、快照恢复和本地刷新路径，减少桌面与移动端同步后章节、分卷、设定集内容不一致的情况。
-- 作品管理默认以窗口模式打开，避免进入即全屏；章节列表统计去掉与字数重复的 token 展示。
+- 新增编辑器文字朗读：状态栏可朗读选中文字或当前章节，支持系统语音、OpenAI 兼容、Gemini、Claude 兼容和自定义 TTS 音源，并提供暂停、继续、停止、音色、语速及模型/音色发现。
+- 新增可复制的 TTS 错误详情与针对鉴权、限流、模型/端点错误的提示；API Key 仅保存在本机会话存储，TTS 配置、音色和语速不会参与云同步。
+- 新增“当前段落高亮”偏好设置，以淡色标记正在编辑的段落，并在编辑器失焦后保留细光标位置。
+- 隔离不同作品和章节的编辑器撤销历史，切章前刷新待保存内容，并让延迟保存始终携带原作品/章节身份，避免撤销或异步保存覆盖错误章节。
+- 统一 OpenAI、Claude、Gemini 及自定义兼容端点的配置迁移、模型获取、连接测试、Embedding 和请求路由；保留 Gemini 原生通道，并改善历史配置升级后的可用性。
+- AI 侧栏新增明确的“生成设定”模式，可选择目标分类并输出可直接应用的设定卡片；历史消息勾选状态与实际请求上下文保持一致。
+- 新增动态资源块加载失败的单次自恢复机制，减少客户端更新后旧页面因 chunk 失效而停在错误页的问题。
+- 补充中、英、俄、阿 README 与中、英、俄帮助内容，并优化设定集导航短标签和相关错误提示。
 
 #### Android 端
 
-- 新增移动端应用级国际化基础设施，补齐书架、编辑器、设定集、AI、个人中心、同步状态、导入导出和法务页面的大量固定文案。
-- 内置设定分类、上下文引用、AI 模板、模型选择、写作评估和工具菜单支持随语言切换显示。
-- 修复移动端云同步拉取后 UI 状态没有及时刷新、需要强制覆盖才能看到云端内容的同步体验问题。
-- 同步键策略与桌面端保持一致，降低不同端之间章节、设定集、作品信息映射错乱的风险。
-- Android 版本号对齐为 `1.2.44+1244`。
+- 新增系统文字朗读面板，可朗读选中文字或当前章节，支持暂停、继续、停止、语速记忆及多语言语音选择。
+- 改进 AI 模型获取与选择：支持从服务端读取完整模型列表，模型较多时可搜索，并完善加载、空结果和错误状态。
+- 修复部分中转服务忽略流式请求或在最后一个事件后直接断开时出现的空回复、尾部截断；增加 OpenAI Chat/Responses、Claude Messages 和 Gemini 非流式 JSON 回退解析。
+- 扩展设定集分类管理与快速新建流程：支持自定义分类的新建、重命名、清空和删除，并可整理、移动、排序和搜索分类内条目。
+- 重做时间线总览和事件编辑体验，增加顺序、时间标记、关联设定、统计卡片、空状态及新增/编辑/删除流程。
+- 修复新建或重命名分类后文本控制器提前释放引发的 Flutter 红屏断言，避免 `_dependents.isEmpty` 生命周期错误再次出现。
+- Android 版本号更新为 `1.2.45+1245`。
 
 ---
 
@@ -24,16 +29,21 @@
 
 #### Desktop / Web
 
-- Expanded English and Russian localization coverage across settings, help, cloud sync, book info, the AI sidebar, synopsis center, model selection, and error states.
-- Localized built-in setting categories, provider lists, theme prompts, help content, and safety-prompt displays so fixed Chinese copy no longer remains after changing languages.
-- Fixed a TipTap runtime crash when restoring editor position before the editor view is mounted, and made blank-editor focus recovery more robust.
-- Improved Firebase and portable-sync overwrite, snapshot restore, and local refresh paths to reduce chapter, volume, and setting-data mismatches between desktop and mobile.
-- Work management now opens in windowed mode by default, and the desktop chapter list no longer shows token counts that duplicate word counts.
+- Added editor text to speech: read the current selection or chapter from the status bar using system speech, OpenAI-compatible, Gemini, Claude-compatible, or custom TTS providers, with pause, resume, stop, voice, speed, and model/voice discovery controls.
+- Added copyable TTS diagnostics with focused hints for authentication, rate limits, models, and endpoints. API keys stay in local session storage, while TTS configuration, voices, and speed are excluded from cloud sync.
+- Added an optional Current Paragraph Highlight that tints the active paragraph and retains a thin caret after the editor loses focus.
+- Isolated undo history between works and chapters, flushed pending edits before switching, and attached the original work/chapter identity to delayed saves to prevent cross-document overwrites.
+- Unified configuration migration, model fetching, connection tests, embeddings, and request routing for OpenAI-, Claude-, Gemini-, and custom-compatible endpoints while preserving the native Gemini path.
+- Added an explicit Generate Settings mode in the AI sidebar with destination-category selection and directly applicable setting cards; selected conversation history now matches the context actually sent.
+- Added one-shot recovery for stale dynamic chunks so clients can recover after an update instead of remaining on an error page.
+- Updated Chinese, English, Russian, and Arabic READMEs plus the Chinese, English, and Russian help content, and improved readable lore navigation labels and related errors.
 
 #### Android
 
-- Added the mobile app-level localization foundation and filled in fixed copy across bookshelf, editor, lore/settings, AI, profile, sync status, import/export, and legal pages.
-- Built-in setting categories, context references, AI templates, model selection, writing review, and tool menus now follow the selected language.
-- Fixed the mobile cloud-pull refresh path so pulled cloud data is reflected without requiring a forced overwrite in common cases.
-- Aligned sync-key policy with desktop to reduce cross-device mapping mismatches for chapters, settings, and book information.
-- Android is now version `1.2.44+1244`.
+- Added a system text-to-speech sheet for the selection or current chapter, with pause, resume, stop, remembered speed, and multilingual voice selection.
+- Improved AI model discovery and selection with complete server model lists, search for large catalogs, and clearer loading, empty, and error states.
+- Fixed blank or truncated AI replies when a relay ignores streaming or closes after the final event; added non-streaming JSON fallbacks for OpenAI Chat/Responses, Claude Messages, and Gemini responses.
+- Expanded lore category management and quick creation with custom-category create, rename, clear, and delete actions plus item organization, move, reorder, and search flows.
+- Reworked the timeline overview and event editor with order values, time labels, linked lore, metrics, empty states, and complete create/edit/delete flows.
+- Fixed the Flutter red-screen assertion caused by disposing a text controller while the create/rename category dialog still depended on it, preventing the `_dependents.isEmpty` lifecycle failure.
+- Android is now version `1.2.45+1245`.
