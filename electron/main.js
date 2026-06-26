@@ -333,6 +333,7 @@ function createWindow() {
         minWidth: 900,
         minHeight: 600,
         title: APP_WINDOW_TITLE,
+        icon: path.join(__dirname, 'icon.ico'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -905,6 +906,7 @@ function createSplashWindow() {
         skipTaskbar: false,
         show: true,
         backgroundColor: '#1a1a2e',
+        icon: path.join(__dirname, 'icon.ico'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,

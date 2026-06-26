@@ -4,6 +4,7 @@
  */
 
 import { persistGet, persistSet } from './persistence';
+import { countWords } from './word-count';
 import { getAllWorks, getSettingsNodes, getActiveWorkId } from './settings';
 import { getChapters } from './storage';
 
@@ -275,7 +276,7 @@ export async function importWork(file) {
                 id: generateId(),
                 title: raw.title || `序章`,
                 content,
-                wordCount: plainText.length,
+                wordCount: countWords(plainText),
                 createdAt: now,
                 updatedAt: now,
             };

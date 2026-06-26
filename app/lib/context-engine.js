@@ -2,6 +2,7 @@
 // 让 AI 完整理解：作品风格、人物设定、世界观、前文脉络、当前位置
 
 import { getChapters } from './storage';
+import { countWords } from './word-count';
 import { getProjectSettings, getSettingsNodes, getWritingMode, getActiveWorkId } from './settings';
 import { getEmbedding, cosineSimilarity } from './embeddings';
 import { estimateTokenCount } from 'tokenx';
@@ -324,10 +325,20 @@ export async function buildContext(activeChapterId, selectedText, selectedIds = 
     }
 
     // ===== 构建设定索引（全量，供 AI 查询/查找/删除用） =====
+    const indexLanguage = getRuntimeLanguage();
+    const indexTr = (zh, en, ru = en) => promptText(indexLanguage, zh, en, ru);
     const allItemNodes = nodes.filter(n => n.type === 'item');
-    const catLabel = { character: '角色', world: '世界观', location: '地点', object: '物品', plot: '大纲', rules: '规则', custom: '自定义' };
+    const catLabel = {
+        character: indexTr('角色', 'Character', 'Персонаж'),
+        world: indexTr('世界观', 'Worldbuilding', 'Мир'),
+        location: indexTr('地点', 'Location', 'Место'),
+        object: indexTr('物品', 'Item', 'Предмет'),
+        plot: indexTr('大纲', 'Outline', 'План'),
+        rules: indexTr('规则', 'Rules', 'Правила'),
+        custom: indexTr('自定义', 'Custom', 'Пользовательское'),
+    };
     const settingsIndexLines = allItemNodes.map(n => {
-        const statusTag = n.enabled === false ? '[已禁用]' : '';
+        const statusTag = n.enabled === false ? indexTr('[已禁用]', ' [disabled]', ' [отключено]') : '';
         return `- ${catLabel[n.category] || n.category} | ${n.name}${statusTag}`;
     });
     const settingsIndex = settingsIndexLines.length > 0
@@ -376,6 +387,8 @@ export async function buildContext(activeChapterId, selectedText, selectedIds = 
  * 按优先级分配 token 预算，超出时截断低优先级内容
  */
 function applyTokenBudget(modules, inputTokenBudget = DEFAULT_INPUT_TOKEN_BUDGET) {
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     // 计算每个模块的 token
     const entries = Object.entries(modules).map(([key, text]) => ({
         key,
@@ -399,9 +412,17 @@ function applyTokenBudget(modules, inputTokenBudget = DEFAULT_INPUT_TOKEN_BUDGET
             const ratio = remaining / entry.tokens;
             const keepChars = Math.floor(entry.text.length * ratio * 0.9); // 留10%余量
             if (entry.key === 'previousChapterAnchor') {
-                result[entry.key] = '…（因 token 限制，仅保留上一章末尾作为文风与承接锚点）\n' + entry.text.slice(-keepChars);
+                result[entry.key] = tr(
+                    '…（因 token 限制，仅保留上一章末尾作为文风与承接锚点）\n',
+                    '…(Due to token limits, only the end of the previous chapter is kept as a style and continuity anchor)\n',
+                    '…(Из-за ограничения токенов сохранён только конец предыдущей главы как стилевой ориентир)\n'
+                ) + entry.text.slice(-keepChars);
             } else {
-                result[entry.key] = entry.text.slice(0, keepChars) + '\n…（因 token 限制，部分内容已省略）';
+                result[entry.key] = entry.text.slice(0, keepChars) + tr(
+                    '\n…（因 token 限制，部分内容已省略）',
+                    '\n…(Some content omitted due to token limits)',
+                    '\n…(Часть содержания опущена из-за ограничения токенов)'
+                );
             }
             remaining = 0;
         } else {
@@ -648,34 +669,38 @@ export function compileUserPrompt(mode, text, instruction, options = {}) {
 
 function buildBookInfoContext(bookInfo) {
     if (!bookInfo) return '';
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     const parts = [];
-    if (bookInfo.title) parts.push(`书名：${bookInfo.title}`);
-    if (bookInfo.genre) parts.push(`题材：${bookInfo.genre}`);
-    if (bookInfo.synopsis) parts.push(`故事简介：${bookInfo.synopsis}`);
-    if (bookInfo.style) parts.push(`写作风格：${bookInfo.style}`);
-    if (bookInfo.tone) parts.push(`整体基调：${bookInfo.tone}`);
-    if (bookInfo.pov) parts.push(`叙事视角：${bookInfo.pov}`);
-    if (bookInfo.targetAudience) parts.push(`目标读者：${bookInfo.targetAudience}`);
+    if (bookInfo.title) parts.push(`${tr('书名：', 'Title: ', 'Название: ')}${bookInfo.title}`);
+    if (bookInfo.genre) parts.push(`${tr('题材：', 'Genre: ', 'Жанр: ')}${bookInfo.genre}`);
+    if (bookInfo.synopsis) parts.push(`${tr('故事简介：', 'Synopsis: ', 'Аннотация: ')}${bookInfo.synopsis}`);
+    if (bookInfo.style) parts.push(`${tr('写作风格：', 'Writing Style: ', 'Стиль письма: ')}${bookInfo.style}`);
+    if (bookInfo.tone) parts.push(`${tr('整体基调：', 'Overall Tone: ', 'Общий тон: ')}${bookInfo.tone}`);
+    if (bookInfo.pov) parts.push(`${tr('叙事视角：', 'Point of View: ', 'Точка зрения: ')}${bookInfo.pov}`);
+    if (bookInfo.targetAudience) parts.push(`${tr('目标读者：', 'Target Audience: ', 'Целевая аудитория: ')}${bookInfo.targetAudience}`);
     return parts.length > 0 ? parts.join('\n') : '';
 }
 
 // 从树节点构建人物上下文
 function buildCharactersContext(charNodes) {
     if (!charNodes || charNodes.length === 0) return '';
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     return charNodes.map(n => {
         const c = n.content || {};
-        const parts = [`【${n.name}】（${c.role || '角色'}）(id: ${n.id})`];
-        if (c.age) parts.push(`  年龄：${c.age}`);
-        if (c.gender) parts.push(`  性别：${c.gender}`);
-        if (c.appearance) parts.push(`  外貌：${c.appearance}`);
-        if (c.personality) parts.push(`  性格：${c.personality}`);
-        if (c.background) parts.push(`  背景：${c.background}`);
-        if (c.motivation) parts.push(`  动机/目标：${c.motivation}`);
-        if (c.skills) parts.push(`  能力：${c.skills}`);
-        if (c.speechStyle) parts.push(`  说话风格：${c.speechStyle}`);
-        if (c.relationships) parts.push(`  人物关系：${c.relationships}`);
-        if (c.arc) parts.push(`  成长弧线：${c.arc}`);
-        if (c.notes) parts.push(`  备注：${c.notes}`);
+        const parts = [`【${n.name}】（${c.role || tr('角色', 'Character', 'Персонаж')}）(id: ${n.id})`];
+        if (c.age) parts.push(`  ${tr('年龄：', 'Age: ', 'Возраст: ')}${c.age}`);
+        if (c.gender) parts.push(`  ${tr('性别：', 'Gender: ', 'Пол: ')}${c.gender}`);
+        if (c.appearance) parts.push(`  ${tr('外貌：', 'Appearance: ', 'Внешность: ')}${c.appearance}`);
+        if (c.personality) parts.push(`  ${tr('性格：', 'Personality: ', 'Характер: ')}${c.personality}`);
+        if (c.background) parts.push(`  ${tr('背景：', 'Background: ', 'Предыстория: ')}${c.background}`);
+        if (c.motivation) parts.push(`  ${tr('动机/目标：', 'Motivation/Goal: ', 'Мотивация/цель: ')}${c.motivation}`);
+        if (c.skills) parts.push(`  ${tr('能力：', 'Abilities: ', 'Способности: ')}${c.skills}`);
+        if (c.speechStyle) parts.push(`  ${tr('说话风格：', 'Speech Style: ', 'Манера речи: ')}${c.speechStyle}`);
+        if (c.relationships) parts.push(`  ${tr('人物关系：', 'Relationships: ', 'Отношения: ')}${c.relationships}`);
+        if (c.arc) parts.push(`  ${tr('成长弧线：', 'Character Arc: ', 'Арка персонажа: ')}${c.arc}`);
+        if (c.notes) parts.push(`  ${tr('备注：', 'Notes: ', 'Примечания: ')}${c.notes}`);
         return parts.join('\n');
     }).join('\n\n');
 }
@@ -768,6 +793,8 @@ function getPreviousChapterGroups(chapters, currentIndex) {
     const previousEntries = getRealChapterEntries(chapters, currentIndex);
     if (previousEntries.length <= 1) return [];
 
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     const olderEntries = previousEntries.slice(0, -1);
     const groups = [];
     for (let i = 0; i < olderEntries.length; i += CHAPTER_GROUP_SIZE) {
@@ -777,7 +804,11 @@ function getPreviousChapterGroups(chapters, currentIndex) {
         groups.push({
             id: `chapter-group-${first.chapter.id}-${last.chapter.id}`,
             entries,
-            label: `第${first.ordinal}-${last.ordinal}章多章节概要`,
+            label: tr(
+                `第${first.ordinal}-${last.ordinal}章多章节概要`,
+                `Chapters ${first.ordinal}-${last.ordinal} multi-chapter synopsis`,
+                `Главы ${first.ordinal}-${last.ordinal} многочастный синопсис`
+            ),
         });
     }
     return groups;
@@ -807,7 +838,13 @@ function getRelevantMemoryGroups(memoryGroups, chapters, currentIndex) {
 function buildMemoryGroupContext(group, chapters) {
     const text = buildChapterMemoryGroupText(group, chapters);
     if (!text) return '';
-    return `【自定义多章节概要组】\n${text}`;
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
+    return tr(
+        '【自定义多章节概要组】\n',
+        '[Custom Multi-Chapter Synopsis Group]\n',
+        '[Пользовательская группа многочастного синопсиса]\n'
+    ) + text;
 }
 
 function getCoveredChapterIds(groups) {
@@ -821,23 +858,39 @@ function isChapterGroupCovered(group, coveredChapterIds) {
 }
 
 function buildRawChapterFallbackDigest(chapter, chapterNumber) {
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     const text = stripHtml(chapter.content || '').replace(/\s+/g, ' ').trim();
-    if (!text) return `第${chapterNumber}章「${chapter.title}」：暂无正文。`;
+    if (!text) return tr(
+        `第${chapterNumber}章「${chapter.title}」：暂无正文。`,
+        `Chapter ${chapterNumber} "${chapter.title}": No content yet.`,
+        `Глава ${chapterNumber} «${chapter.title}»: пока нет текста.`
+    );
 
     const head = text.slice(0, 320);
     const tail = text.length > 640 ? text.slice(-320) : '';
     const parts = [
-        `第${chapterNumber}章「${chapter.title}」：尚未生成章节概要，为节省上下文仅保留首尾线索。`,
-        `开头线索：${head}`,
+        tr(
+            `第${chapterNumber}章「${chapter.title}」：尚未生成章节概要，为节省上下文仅保留首尾线索。`,
+            `Chapter ${chapterNumber} "${chapter.title}": No synopsis yet; keeping only opening and closing excerpts to save context.`,
+            `Глава ${chapterNumber} «${chapter.title}»: синопсиса ещё нет; для экономии контекста сохранены только начальный и конечный фрагменты.`
+        ),
+        `${tr('开头线索：', 'Opening excerpt: ', 'Начальный фрагмент: ')}${head}`,
     ];
-    if (tail) parts.push(`结尾线索：${tail}`);
+    if (tail) parts.push(`${tr('结尾线索：', 'Closing excerpt: ', 'Конечный фрагмент: ')}${tail}`);
     return parts.join('\n');
 }
 
 function buildCompactChapterMemory(chapter, chapterNumber) {
     const synopsisText = hasChapterSynopsis(chapter) ? buildChapterSynopsisBriefText(chapter) : '';
     if (synopsisText) {
-        return `第${chapterNumber}章「${chapter.title}」：\n${synopsisText}`;
+        const language = getRuntimeLanguage();
+        const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
+        return tr(
+            `第${chapterNumber}章「${chapter.title}」：\n`,
+            `Chapter ${chapterNumber} "${chapter.title}":\n`,
+            `Глава ${chapterNumber} «${chapter.title}»:\n`
+        ) + synopsisText;
     }
     return buildRawChapterFallbackDigest(chapter, chapterNumber);
 }
@@ -847,24 +900,48 @@ function buildChapterGroupContext(group) {
     const first = group.entries[0];
     const last = group.entries[group.entries.length - 1];
     const missingCount = group.entries.filter(entry => !hasChapterSynopsis(entry.chapter)).length;
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     const missingNote = missingCount > 0
-        ? `\n提示：其中 ${missingCount} 章尚未生成单章概要，仅使用首尾线索占位；建议补全概要以提高前情准确度。`
+        ? tr(
+            `\n提示：其中 ${missingCount} 章尚未生成单章概要，仅使用首尾线索占位；建议补全概要以提高前情准确度。`,
+            `\nNote: ${missingCount} of these chapters have no per-chapter synopsis yet and use opening/closing excerpts as placeholders; generating synopses will improve recap accuracy.`,
+            `\nПримечание: у ${missingCount} из этих глав ещё нет отдельного синопсиса, используются начальные/конечные фрагменты; создание синопсисов повысит точность.`
+        )
         : '';
     return [
-        `第${first.ordinal}-${last.ordinal}章「${first.chapter.title}」至「${last.chapter.title}」（多章节概要）${missingNote}`,
+        tr(
+            `第${first.ordinal}-${last.ordinal}章「${first.chapter.title}」至「${last.chapter.title}」（多章节概要）`,
+            `Chapters ${first.ordinal}-${last.ordinal} "${first.chapter.title}" to "${last.chapter.title}" (multi-chapter synopsis)`,
+            `Главы ${first.ordinal}-${last.ordinal} «${first.chapter.title}» — «${last.chapter.title}» (многочастный синопсис)`
+        ) + missingNote,
         group.entries.map(entry => buildCompactChapterMemory(entry.chapter, entry.ordinal)).join('\n\n'),
     ].join('\n');
 }
 
 function buildChapterReferenceContext(chapter, chapterNumber) {
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     const synopsisText = hasChapterSynopsis(chapter) ? buildChapterSynopsisText(chapter) : '';
     if (synopsisText) {
-        return `第${chapterNumber}章「${chapter.title}」（章节概要）：\n${synopsisText}`;
+        return tr(
+            `第${chapterNumber}章「${chapter.title}」（章节概要）：\n`,
+            `Chapter ${chapterNumber} "${chapter.title}" (synopsis):\n`,
+            `Глава ${chapterNumber} «${chapter.title}» (синопсис):\n`
+        ) + synopsisText;
     }
 
     const text = stripHtml(chapter.content || '');
-    if (!text) return `第${chapterNumber}章「${chapter.title}」：（空）`;
-    return `第${chapterNumber}章「${chapter.title}」：\n${text}`;
+    if (!text) return tr(
+        `第${chapterNumber}章「${chapter.title}」：（空）`,
+        `Chapter ${chapterNumber} "${chapter.title}": (empty)`,
+        `Глава ${chapterNumber} «${chapter.title}»: (пусто)`
+    );
+    return tr(
+        `第${chapterNumber}章「${chapter.title}」：\n`,
+        `Chapter ${chapterNumber} "${chapter.title}":\n`,
+        `Глава ${chapterNumber} «${chapter.title}»:\n`
+    ) + text;
 }
 
 function buildPreviousContext(chapters, currentIndex, memoryGroups = []) {
@@ -921,21 +998,45 @@ function buildPreviousChapterAnchorContext(chapters, currentIndex) {
     const previousEntry = getPreviousRealChapterEntry(chapters, currentIndex);
     if (!previousEntry) return '';
 
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     const text = stripHtml(previousEntry.chapter.content || '');
-    if (!text) return `第${previousEntry.ordinal}章「${previousEntry.chapter.title}」：（空）`;
-    return `第${previousEntry.ordinal}章「${previousEntry.chapter.title}」：\n${text}`;
+    if (!text) return tr(
+        `第${previousEntry.ordinal}章「${previousEntry.chapter.title}」：（空）`,
+        `Chapter ${previousEntry.ordinal} "${previousEntry.chapter.title}": (empty)`,
+        `Глава ${previousEntry.ordinal} «${previousEntry.chapter.title}»: (пусто)`
+    );
+    return tr(
+        `第${previousEntry.ordinal}章「${previousEntry.chapter.title}」：\n`,
+        `Chapter ${previousEntry.ordinal} "${previousEntry.chapter.title}":\n`,
+        `Глава ${previousEntry.ordinal} «${previousEntry.chapter.title}»:\n`
+    ) + text;
 }
 
 function buildCurrentContext(chapter, chapterNumber, totalChapters) {
     if (!chapter) return '';
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     const text = stripHtml(chapter.content || '');
     const parts = [
-        `当前章节：第${chapterNumber}章 / 共${totalChapters}章`,
-        `章节标题：「${chapter.title}」`,
+        tr(
+            `当前章节：第${chapterNumber}章 / 共${totalChapters}章`,
+            `Current chapter: Chapter ${chapterNumber} of ${totalChapters}`,
+            `Текущая глава: глава ${chapterNumber} из ${totalChapters}`
+        ),
+        tr(
+            `章节标题：「${chapter.title}」`,
+            `Chapter title: "${chapter.title}"`,
+            `Название главы: «${chapter.title}»`
+        ),
     ];
     if (text) {
-        parts.push(`本章已有字数：${text.replace(/\s/g, '').length}字`);
-        parts.push(`\n--- 本章正文 ---\n${text}`);
+        parts.push(tr(
+            `本章已有字数：${countWords(text)}字`,
+            `Words so far: ${countWords(text)}`,
+            `Слов уже: ${countWords(text)}`
+        ));
+        parts.push(tr('\n--- 本章正文 ---\n', '\n--- Chapter text ---\n', '\n--- Текст главы ---\n') + text);
     }
     return parts.join('\n');
 }
@@ -1289,17 +1390,19 @@ ${base}
 // 空间/地点上下文
 function buildLocationsContext(locationNodes, allNodes) {
     if (!locationNodes || locationNodes.length === 0) return '';
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     return locationNodes.map(n => {
         const path = getNodePathStr(n, allNodes);
         const c = n.content || {};
         const parts = [`[${path}]`];
         if (c.description) parts.push(c.description);
-        if (c.slugline) parts.push(`场景标题：${c.slugline}`);
-        if (c.sensoryVisual) parts.push(`视觉：${c.sensoryVisual}`);
-        if (c.sensoryAudio) parts.push(`听觉：${c.sensoryAudio}`);
-        if (c.sensorySmell) parts.push(`嗅觉/触觉：${c.sensorySmell}`);
-        if (c.mood) parts.push(`氛围：${c.mood}`);
-        if (c.dangerLevel) parts.push(`危险等级：${c.dangerLevel}`);
+        if (c.slugline) parts.push(`${tr('场景标题：', 'Slugline: ', 'Заголовок сцены: ')}${c.slugline}`);
+        if (c.sensoryVisual) parts.push(`${tr('视觉：', 'Visual: ', 'Зрение: ')}${c.sensoryVisual}`);
+        if (c.sensoryAudio) parts.push(`${tr('听觉：', 'Sound: ', 'Звук: ')}${c.sensoryAudio}`);
+        if (c.sensorySmell) parts.push(`${tr('嗅觉/触觉：', 'Smell/Touch: ', 'Запах/осязание: ')}${c.sensorySmell}`);
+        if (c.mood) parts.push(`${tr('氛围：', 'Mood: ', 'Атмосфера: ')}${c.mood}`);
+        if (c.dangerLevel) parts.push(`${tr('危险等级：', 'Danger Level: ', 'Уровень опасности: ')}${c.dangerLevel}`);
         return parts.join('\n');
     }).join('\n\n');
 }
@@ -1307,16 +1410,18 @@ function buildLocationsContext(locationNodes, allNodes) {
 // 物品/道具上下文
 function buildObjectsContext(objectNodes, allNodes) {
     if (!objectNodes || objectNodes.length === 0) return '';
+    const language = getRuntimeLanguage();
+    const tr = (zh, en, ru = en) => promptText(language, zh, en, ru);
     return objectNodes.map(n => {
         const path = getNodePathStr(n, allNodes);
         const c = n.content || {};
         const parts = [`[${path}]`];
         if (c.description) parts.push(c.description);
-        if (c.objectType) parts.push(`类型：${c.objectType}`);
-        if (c.currentHolder) parts.push(`当前持有者：${c.currentHolder}`);
-        if (c.rank) parts.push(`品阶：${c.rank}`);
-        if (c.numericStats) parts.push(`属性：${c.numericStats}`);
-        if (c.symbolism) parts.push(`象征意义：${c.symbolism}`);
+        if (c.objectType) parts.push(`${tr('类型：', 'Type: ', 'Тип: ')}${c.objectType}`);
+        if (c.currentHolder) parts.push(`${tr('当前持有者：', 'Current Holder: ', 'Текущий владелец: ')}${c.currentHolder}`);
+        if (c.rank) parts.push(`${tr('品阶：', 'Rank: ', 'Ранг: ')}${c.rank}`);
+        if (c.numericStats) parts.push(`${tr('属性：', 'Stats: ', 'Характеристики: ')}${c.numericStats}`);
+        if (c.symbolism) parts.push(`${tr('象征意义：', 'Symbolism: ', 'Символизм: ')}${c.symbolism}`);
         return parts.join('\n');
     }).join('\n\n');
 }

@@ -5,6 +5,8 @@
 /.claude/
 .codex/
 .codex-remote-attachments/
+# 项目级 AI 指引：本地保留供 Claude Code 加载，不公开到开源仓库
+/CLAUDE.md
 
 # dependencies
 /node_modules

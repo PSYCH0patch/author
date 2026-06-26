@@ -1,6 +1,7 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
+import { countWords } from '../lib/word-count';
 import { EditorState, Selection, TextSelection } from '@tiptap/pm/state';
 import { redoDepth, undoDepth } from '@tiptap/pm/history';
 import { DOMParser as PmDOMParser, DOMSerializer } from '@tiptap/pm/model';
@@ -312,7 +313,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
             workId: loadedTarget.workId,
             html,
             text,
-            wordCount: text.replace(/\s/g, '').length,
+            wordCount: countWords(text),
         };
     }, []);
 
@@ -2628,7 +2629,7 @@ function StatusBar({ editor, pageCount, chapterId }) {
 
     const characterCount = editor.storage.characterCount;
     const chars = characterCount?.characters() ?? 0;
-    const words = editor.getText().replace(/\s/g, '').length;
+    const words = countWords(editor.getText());
 
     return (
         <div className="status-bar">

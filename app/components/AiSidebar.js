@@ -685,6 +685,27 @@ function getSettingsGenerationTargets(nodes, workId) {
     return targets;
 }
 
+// 顶级系统内置分类名按界面语言显示，与设定面板 getLocalizedCatLabel 译法保持一致。
+// 仅翻译"未被用户改名"的默认分类；用户改过名、子文件夹（depth>0）一律保留原名。
+function localizeTargetName(target, tx) {
+    if (!target) return '';
+    if (target.depth !== 0) return target.name;
+    const defaultZh = {
+        character: '人物设定', location: '空间/地点', world: '世界观/设定',
+        object: '物品/道具', plot: '大纲', rules: '写作规则', custom: '自定义设定',
+    }[target.category];
+    if (!defaultZh || target.name !== defaultZh) return target.name;
+    return {
+        character: tx('人物设定', 'Characters', 'Персонажи'),
+        location: tx('空间/地点', 'Places', 'Места'),
+        world: tx('世界观/设定', 'Worldbuilding', 'Мир'),
+        object: tx('物品/道具', 'Items / Props', 'Предметы / реквизит'),
+        plot: tx('大纲', 'Outline', 'План'),
+        rules: tx('写作规则', 'Writing Rules', 'Правила письма'),
+        custom: tx('自定义设定', 'Custom Settings', 'Пользовательские настройки'),
+    }[target.category];
+}
+
 function buildSettingsGenerationRequest(userPrompt, targets, tx) {
     const targetData = targets.map(target => ({
         category: target.category,
@@ -2286,7 +2307,7 @@ export default function AiSidebar({ onInsertText }) {
                                                     })}
                                                 />
                                                 <FolderOpen size={14} />
-                                                <span className="settings-generation-target-name">{target.name}</span>
+                                                <span className="settings-generation-target-name">{localizeTargetName(target, tx)}</span>
                                                 <span className="settings-generation-target-level">
                                                     {target.depth === 0
                                                         ? tx('大分类', 'Category', 'Категория')

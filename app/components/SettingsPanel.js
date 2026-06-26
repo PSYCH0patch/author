@@ -2271,6 +2271,12 @@ function ApiConfigForm({ data, onChange }) {
     const [testStatus, setTestStatus] = useState(null);
     const [fetchedModels, setFetchedModels] = useState(null);
     const [fetchedEmbedModels, setFetchedEmbedModels] = useState(null);
+    const [embedFetchMsg, setEmbedFetchMsg] = useState(null);
+    // 向量配置（Key/地址/供应商）一变，清掉已拉取的列表，让「获取模型列表」按钮复位，可用新 Key 重新拉取
+    useEffect(() => {
+        setFetchedEmbedModels(null);
+        setEmbedFetchMsg(null);
+    }, [data.embedApiKey, data.embedBaseUrl, data.embedProvider, data.apiKey, data.baseUrl]);
     const [rebuildStatus, setRebuildStatus] = useState(null); // null | 'loading' | {done, total, failed}
     const [balanceInfo, setBalanceInfo] = useState(null); // null | 'loading' | { supported, balance, currency, ... } | { error }
     const [savedProfiles, setSavedProfiles] = useState([]);
@@ -2406,14 +2412,23 @@ function ApiConfigForm({ data, onChange }) {
 
     const handleFetchEmbedModels = async () => {
         setFetchedEmbedModels('loading');
+        setEmbedFetchMsg(null);
         try {
             const embedKey = data.embedApiKey || data.apiKey;
             const embedBase = data.embedBaseUrl || data.baseUrl;
             const res = await fetch('/api/ai/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: embedKey, baseUrl: embedBase, provider: data.embedProvider, embedOnly: true, proxyUrl: data.proxyUrl }) });
             const result = await res.json();
-            if (result.error) { setFetchedEmbedModels(null); setTestStatus({ success: false, error: t('apiConfig.embedApiPrefix') + result.error }); }
-            else { setFetchedEmbedModels(result.models || []); }
-        } catch { setFetchedEmbedModels(null); setTestStatus({ success: false, error: t('apiConfig.fetchEmbedModelsFailed') }); }
+            // 结果就近显示在向量模型区下方（旧逻辑写到对话模型的 testStatus，离这里几百行，用户看不到）
+            if (result.error) { setFetchedEmbedModels(null); setEmbedFetchMsg({ type: 'error', text: t('apiConfig.embedApiPrefix') + result.error }); }
+            else {
+                const embedModels = result.models || [];
+                setFetchedEmbedModels(embedModels);
+                if (embedModels.length > 0) {
+                    setEmbedFetchMsg({ type: 'success', text: text(`已获取 ${embedModels.length} 个向量模型`, `Fetched ${embedModels.length} embedding models`, `Получено моделей: ${embedModels.length}`) });
+                }
+                // length===0（连通但无嵌入模型）由下方“未找到嵌入模型”提示处理
+            }
+        } catch { setFetchedEmbedModels(null); setEmbedFetchMsg({ type: 'error', text: t('apiConfig.fetchEmbedModelsFailed') }); }
     };
 
     const handleRebuildEmbeddings = async () => {
@@ -3257,6 +3272,9 @@ function ApiConfigForm({ data, onChange }) {
                                     }}>{isInList ? '☑ 已在快切列表' : '☐ 加入快切列表'}</button>
                                 );
                             })()}
+                            {embedFetchMsg && (
+                                <div style={{ fontSize: 11, color: embedFetchMsg.type === 'success' ? 'var(--success)' : 'var(--error)', margin: '6px 0 4px' }}>{embedFetchMsg.text}</div>
+                            )}
                             {Array.isArray(fetchedEmbedModels) && fetchedEmbedModels.length === 0 && (
                                 <div style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 4px' }}>未找到嵌入模型，可手动输入模型名（如 embedding-3）</div>
                             )}

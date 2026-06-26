@@ -50,6 +50,30 @@ function extractModelArray(data) {
     return [];
 }
 
+// 部分供应商的 /models 不返回嵌入模型 → 使用已知列表兜底（参考 Cherry Studio 内置模型）
+const KNOWN_EMBED_MODELS = {
+    zhipu: [{ id: 'embedding-3', displayName: 'Embedding-3' }],
+    deepseek: [{ id: 'deepseek-embedding', displayName: 'DeepSeek Embedding' }],
+    moonshot: [{ id: 'moonshot-v1-embedding', displayName: 'Moonshot Embedding' }],
+    bailian: [
+        { id: 'text-embedding-v4', displayName: 'Text Embedding v4' },
+        { id: 'text-embedding-v3', displayName: 'Text Embedding v3' },
+        { id: 'text-embedding-v2', displayName: 'Text Embedding v2' },
+    ],
+    qwen: [
+        { id: 'text-embedding-v4', displayName: 'Text Embedding v4' },
+        { id: 'text-embedding-v3', displayName: 'Text Embedding v3' },
+        { id: 'text-embedding-v2', displayName: 'Text Embedding v2' },
+    ],
+    baidu: [{ id: 'bce-reranker-base_v1', displayName: 'BCE Reranker Base' }, { id: 'tao-8k', displayName: 'Tao 8K' }],
+    doubao: [{ id: 'doubao-embedding', displayName: 'Doubao Embedding' }],
+    baichuan: [{ id: 'Baichuan-Text-Embedding', displayName: 'Baichuan Embedding' }],
+    hunyuan: [{ id: 'hunyuan-embedding', displayName: 'Hunyuan Embedding' }],
+    yi: [{ id: 'yi-embedding', displayName: 'Yi Embedding' }],
+    openai: [{ id: 'text-embedding-3-small', displayName: 'Text Embedding 3 Small' }, { id: 'text-embedding-3-large', displayName: 'Text Embedding 3 Large' }, { id: 'text-embedding-ada-002', displayName: 'Ada 002' }],
+    siliconflow: [{ id: 'BAAI/bge-m3', displayName: 'BGE-M3' }, { id: 'BAAI/bge-large-zh-v1.5', displayName: 'BGE Large ZH v1.5' }],
+};
+
 // OpenAI 兼容格式拉取模型（/v1/models）
 // 参考 Cherry Studio：多路径尝试 + 多格式兼容 + 超时处理
 function normalizeOpenAIBaseUrl(rawBaseUrl) {
@@ -107,6 +131,7 @@ async function fetchOpenAIModels(apiKey, baseUrl, embedOnly, provider, proxyUrl)
 
     let rawModels = [];
     let lastError = null;
+    let hadNetworkError = false;
 
     for (const url of pathsToTry) {
         try {
@@ -130,13 +155,21 @@ async function fetchOpenAIModels(apiKey, baseUrl, embedOnly, provider, proxyUrl)
             rawModels = extractModelArray(data);
             if (rawModels.length > 0) break;
         } catch {
-            // 超时或网络错误，尝试下一个路径
+            // 超时或网络错误：记录下来，避免后面被内置向量模型兜底掩盖了连接问题
+            hadNetworkError = true;
             continue;
         }
     }
 
     if (rawModels.length === 0) {
+        // 先如实暴露“请求失败”：HTTP 错误(401/4xx/5xx)或网络超时都不该被内置向量模型兜底掩盖，
+        // 否则用户填错 Key/地址仍会看到“可用”的向量模型，真正调用时才失败、难定位。
         if (lastError) return handleFetchError(lastError);
+        if (!hadNetworkError && embedOnly) {
+            // 仅“连接成功但未返回任何嵌入模型”时才用内置已知向量模型兜底（百炼等不暴露嵌入模型）
+            const knownModels = KNOWN_EMBED_MODELS[provider];
+            if (knownModels) return NextResponse.json({ models: knownModels });
+        }
         return NextResponse.json({ error: '未能获取到模型列表，请检查 API 地址和 Key 是否正确' }, { status: 404 });
     }
 
@@ -153,34 +186,13 @@ async function fetchOpenAIModels(apiKey, baseUrl, embedOnly, provider, proxyUrl)
         if (filtered.length > 0) {
             models = filtered;
         } else {
-            // 部分供应商的 /models 不返回嵌入模型 → 使用已知列表（参考 Cherry Studio 内置模型）
-            const KNOWN_EMBED_MODELS = {
-                zhipu: [{ id: 'embedding-3', displayName: 'Embedding-3' }],
-                deepseek: [{ id: 'deepseek-embedding', displayName: 'DeepSeek Embedding' }],
-                moonshot: [{ id: 'moonshot-v1-embedding', displayName: 'Moonshot Embedding' }],
-                bailian: [
-                    { id: 'text-embedding-v4', displayName: 'Text Embedding v4' },
-                    { id: 'text-embedding-v3', displayName: 'Text Embedding v3' },
-                    { id: 'text-embedding-v2', displayName: 'Text Embedding v2' },
-                ],
-                qwen: [
-                    { id: 'text-embedding-v4', displayName: 'Text Embedding v4' },
-                    { id: 'text-embedding-v3', displayName: 'Text Embedding v3' },
-                    { id: 'text-embedding-v2', displayName: 'Text Embedding v2' },
-                ],
-                baidu: [{ id: 'bce-reranker-base_v1', displayName: 'BCE Reranker Base' }, { id: 'tao-8k', displayName: 'Tao 8K' }],
-                doubao: [{ id: 'doubao-embedding', displayName: 'Doubao Embedding' }],
-                baichuan: [{ id: 'Baichuan-Text-Embedding', displayName: 'Baichuan Embedding' }],
-                hunyuan: [{ id: 'hunyuan-embedding', displayName: 'Hunyuan Embedding' }],
-                yi: [{ id: 'yi-embedding', displayName: 'Yi Embedding' }],
-                openai: [{ id: 'text-embedding-3-small', displayName: 'Text Embedding 3 Small' }, { id: 'text-embedding-3-large', displayName: 'Text Embedding 3 Large' }, { id: 'text-embedding-ada-002', displayName: 'Ada 002' }],
-                siliconflow: [{ id: 'BAAI/bge-m3', displayName: 'BGE-M3' }, { id: 'BAAI/bge-large-zh-v1.5', displayName: 'BGE Large ZH v1.5' }],
-            };
+            // /models 未返回嵌入模型 → 优先用内置已知列表；都没有则返回空，
+            // 让向量供应商只显示向量模型，不再回退混入对话模型（用户可在输入框手填模型名）
             const knownModels = KNOWN_EMBED_MODELS[provider];
             if (knownModels) {
                 return NextResponse.json({ models: knownModels });
             }
-            // 其他供应商：回退显示全部模型让用户自行选择
+            return NextResponse.json({ models: [] });
         }
     }
 

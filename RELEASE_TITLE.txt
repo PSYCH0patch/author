@@ -1,1 +1,1 @@
-新增跨端文字朗读并增强 AI、编辑器与设定集稳定性 | Added cross-platform text to speech and improved AI, editor, and lore stability
+统一字数口径，改进向量模型获取与移动端长回复稳定性 | Unified word count, improved embedding model discovery and mobile long-reply stability
