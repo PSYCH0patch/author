@@ -188,7 +188,7 @@ cd ..
 
 18. **桌面端 Release 创建成功后**，触发移动端 CI 构建 APK 并上传到同一 Release：
 ```bash
-gh workflow run "Android APK to Public Release" --repo YuanShiJiLoong/author-mobile -f release_tag=vX.Y.Z
+gh workflow run "Android APK to Author 1.2 Public Release" --repo YuanShiJiLoong/author-mobile -f release_tag=vX.Y.Z
 ```
 - CI 会从 `pubspec.yaml` 读取 versionCode（如 1228），构建签名 APK
 - 构建完成后自动上传 `author-mobile-vX.Y.Z.apk` + `author-mobile-latest.apk` 到公开 Release
