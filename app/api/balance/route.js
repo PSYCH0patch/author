@@ -15,7 +15,7 @@ export async function POST(request) {
         let { provider, apiKey, baseUrl, proxyUrl } = await request.json();
         apiKey = rotateKey(apiKey);
         if (!apiKey) {
-            return NextResponse.json({ error: '未配置 API Key' }, { status: 400 });
+            return NextResponse.json({ error: '未配置 API Key', code: 'BALANCE_NO_API_KEY' }, { status: 400 });
         }
 
         const effectiveBaseUrl = (baseUrl || '').replace(/\/+$/, '');
@@ -45,10 +45,13 @@ export async function POST(request) {
         return NextResponse.json({
             supported: false,
             message: '当前供应商不支持余额查询',
+            code: 'BALANCE_UNSUPPORTED',
         });
     } catch (error) {
         console.error('Balance query error:', error);
-        return NextResponse.json({ error: error.message || '查询失败' }, { status: 500 });
+        // 上游/JS 原文优先保留；为空时回退中文文案并加 code 供前端本地化
+        if (error?.message) return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: '查询失败', code: 'BALANCE_QUERY_FAILED' }, { status: 500 });
     }
 }
 

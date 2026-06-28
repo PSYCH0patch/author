@@ -18,10 +18,10 @@ export async function POST(request) {
         provider = providerType || provider;
 
         if (!apiKey) {
-            return NextResponse.json({ success: false, error: '请先填入 API Key' }, { status: 400 });
+            return NextResponse.json({ success: false, error: '请先填入 API Key', code: 'NO_API_KEY' }, { status: 400 });
         }
         if (!baseUrl) {
-            return NextResponse.json({ success: false, error: '请先填写兼容 API 地址' }, { status: 400 });
+            return NextResponse.json({ success: false, error: '请先填写兼容 API 地址', code: 'NO_BASE_URL_COMPAT' }, { status: 400 });
         }
         if (provider === 'claude' || apiFormat === 'anthropic') {
             return await testClaudeCompatible(apiKey, baseUrl, model, proxyUrl);
@@ -29,7 +29,7 @@ export async function POST(request) {
         return await testOpenAICompatible(apiKey, baseUrl, model, proxyUrl, provider);
     } catch (error) {
         console.warn('API 测试连接失败:', error?.message || error);
-        return NextResponse.json({ success: false, error: '网络连接失败，请检查兼容 API 地址或代理设置' });
+        return NextResponse.json({ success: false, error: '网络连接失败，请检查兼容 API 地址或代理设置', code: 'NETWORK_ERROR_PROXY' });
     }
 }
 
@@ -93,9 +93,11 @@ async function testClaudeCompatible(apiKey, baseUrl, model, proxyUrl) {
 
 async function connectionError(response) {
     const errorText = await response.text();
-    let error = `连接失败(${response.status})`;
+    let upstream = null;
     try {
-        error = JSON.parse(errorText)?.error?.message || error;
+        upstream = JSON.parse(errorText)?.error?.message || null;
     } catch { }
-    return NextResponse.json({ success: false, error });
+    // 上游原文（多为英文）保留、不加 code；仅在回退到自带中文文案时加 code 供前端本地化
+    if (upstream) return NextResponse.json({ success: false, error: upstream });
+    return NextResponse.json({ success: false, error: `连接失败(${response.status})`, code: 'CONN_FAILED', status: response.status });
 }

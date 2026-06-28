@@ -14,7 +14,7 @@ export async function POST() {
 
     if (!existsSync(gitDir)) {
         return NextResponse.json(
-            { error: '非源码部署环境，无法执行自动更新' },
+            { error: '非源码部署环境，无法执行自动更新', code: 'NOT_SOURCE_DEPLOY' },
             { status: 400 }
         );
     }

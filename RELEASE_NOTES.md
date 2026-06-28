@@ -1,18 +1,19 @@
-## v1.2.46 — 统一字数口径，改进向量模型获取与移动端长回复稳定性
+## v1.2.47 — 多语言报错与界面翻译全面补齐，移动端新增章节跳转与批量概要
 
 ### 中文
 
 #### 桌面端 / Web
 
-- 统一桌面端与移动端的字数统计口径：仅计汉字、字母和数字，标点与空格不计；编辑器状态栏、字数显示与项目导入的字数全部改用同一规则，确保跨端一致。
-- 改进向量（Embedding）模型获取：区分“拉取失败”与“已连通但无可用嵌入模型”两种情况，结果就近显示在向量模型区下方，并在更换向量 Key、地址或服务商后自动复位，可用新配置重新拉取。
-- AI 上下文中的设定字段标签（角色档案、世界观、大纲等）随界面语言切换中、英、俄，不再固定中文；AI 侧栏“生成设定”的默认目标分类名也跟随界面语言。
-- 新增桌面端应用图标。
+- 全面国际化服务端报错与提示：API 配置、获取模型列表、连接测试、向量（Embedding）、AI 写作与对话、文件导入、WebDAV/局域网同步、检查更新等环节的错误信息，过去部分写死中文，现在统一按界面语言显示中、英、俄三语，英文和俄文用户不再看到夹杂的中文报错。
+- 内置默认设定分类名（如「主要角色」「配角」「势力组织」）与默认作品名，在英文 / 俄文界面下显示对应译名；仅作用于显示层，不改动任何已保存的数据，老作品零影响。
+- 补齐编辑器占位符、模型与向量配置弹窗、生成参数项（输出 Token、思考等级等）的多语言文案。
 
 #### Android 端
 
-- 修复 AI 对话在长回复时逐渐卡顿、最终可能崩溃的问题：流式渲染改为节流刷新，并在生成过程中使用轻量文本，待回复结束后再呈现完整排版与可应用的设定卡片。
-- Android 版本号更新为 `1.2.46+1246`。
+- 新增章节快速跳转：在章节列表输入章节号或标题关键字即可定位；目标若位于折叠的分卷内，会自动展开分卷后滚动过去。
+- 新增批量逐章概要：在「多章概要」页可多选章节，串行生成每章概要，带实时进度与失败重试。
+- 优化「多章概要」页的选择交互，移除冗余的逐行选择 / 取消按钮。
+- Android 版本号更新为 `1.2.47+1247`。
 
 ---
 
@@ -20,12 +21,13 @@
 
 #### Desktop / Web
 
-- Unified the word-count rule across desktop and mobile: only letters, digits, and CJK characters are counted while punctuation and spaces are excluded, applied consistently to the editor status bar, the word display, and project import counts.
-- Improved embedding model discovery: distinguish a failed request from a connected provider that simply has no embedding models, show the outcome directly under the embedding section, and reset it after changing the embedding key, endpoint, or provider so a new configuration can re-fetch.
-- Setting field labels sent in the AI context (character profiles, worldbuilding, outline, and so on) now follow the interface language across Chinese, English, and Russian instead of being fixed in Chinese; the default destination categories in the AI sidebar’s Generate Settings also follow the interface language.
-- Added a desktop application icon.
+- Comprehensive internationalization of server-side errors and prompts: messages across API configuration, model-list fetching, connection testing, embeddings, AI writing and chat, file import, WebDAV/LAN sync, and update checks — previously hard-coded in Chinese in places — now display in Chinese, English, or Russian per the interface language, so English and Russian users no longer see stray Chinese in error messages.
+- Built-in default setting categories (such as "Main Characters", "Supporting Characters", and "Factions") and the default work name now show their translated labels in English/Russian interfaces; this is display-only and does not change any saved data, so existing works are unaffected.
+- Completed multilingual text for the editor placeholder, the model and embedding configuration dialogs, and generation parameters (output tokens, thinking level, and so on).
 
 #### Android
 
-- Fixed AI chat becoming progressively laggy and potentially crashing on long replies: streaming now throttles UI refreshes and uses lightweight text while generating, then renders the full formatting and applicable setting cards once the reply completes.
-- Android is now version `1.2.46+1246`.
+- Added quick chapter jump: type a chapter number or title keyword in the chapter list to jump straight to it; if the target sits inside a collapsed volume, the volume expands automatically before scrolling.
+- Added batch per-chapter synopsis: on the "Multi-chapter synopsis" page, select multiple chapters to generate each synopsis sequentially, with live progress and retry on failure.
+- Refined the selection interaction on the "Multi-chapter synopsis" page and removed the redundant per-row select/deselect buttons.
+- Android is now version `1.2.47+1247`.

@@ -5,6 +5,7 @@ import { ClipboardList, Bot, Sparkles, XCircle, FolderOpen, Download, CheckCircl
 import { getProjectSettings } from '../lib/settings';
 import { useI18n } from '../lib/useI18n';
 import { resolveAiEndpoint } from '../lib/ai-provider-compat';
+import { localizeApiError } from '../lib/api-error-i18n';
 
 // 字段标签（用于展示摘要）
 const FIELD_LABELS = {
@@ -162,7 +163,7 @@ ${importedFields}
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || text('请求失败', 'Request failed', 'Запрос не выполнен'));
+                throw new Error(localizeApiError(err, text) || text('请求失败', 'Request failed', 'Запрос не выполнен'));
             }
 
             // 读取 SSE 流

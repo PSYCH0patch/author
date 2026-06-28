@@ -15,6 +15,7 @@ import { useAppStore } from '../store/useAppStore';
 import {
     getSettingsNodes, addSettingsNode, updateSettingsNode, deleteSettingsNode,
     getActiveWorkId, setActiveWorkId, getAllWorks, addWork, saveSettingsNodes,
+    getBuiltInFolderLabel, getBuiltInWorkName,
 } from '../lib/settings';
 import { useI18n } from '../lib/useI18n';
 import SettingsItemEditor from './SettingsItemEditor';
@@ -1473,7 +1474,7 @@ export default function CategorySettingsModal() {
         if ((node.type === 'folder' || node.type === 'special') && builtInLabel && (!node.name || node.name === builtInLabel)) {
             return getLocalizedCatLabel(node.category, text);
         }
-        return node.name || getLocalizedCatLabel(node.category, text);
+        return getBuiltInFolderLabel(node.name, text) || getLocalizedCatLabel(node.category, text);
     }, [text]);
 
     const categoryNodes = useMemo(() => {
@@ -1670,7 +1671,7 @@ export default function CategorySettingsModal() {
                         onBlur={e => { e.currentTarget.style.boxShadow = `0 1px 4px ${meta.color}12`; }}
                     >
                         {works.map(w => (
-                            <option key={w.id} value={w.id}>{w.name}</option>
+                            <option key={w.id} value={w.id}>{getBuiltInWorkName(w.name, text)}</option>
                         ))}
                     </select>
                     {showNewWorkInput ? (

@@ -12,7 +12,7 @@ export async function GET() {
         );
     } catch (err) {
         return NextResponse.json(
-            { error: '无法读取当前版本号', details: err.message },
+            { error: '无法读取当前版本号', code: 'CANNOT_READ_VERSION', details: err.message },
             { status: 500 }
         );
     }

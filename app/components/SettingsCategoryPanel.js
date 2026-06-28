@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { getSettingsNodes, getActiveWorkId, addSettingsNode } from '../lib/settings';
+import { getSettingsNodes, getActiveWorkId, addSettingsNode, getBuiltInFolderLabel } from '../lib/settings';
 import { useI18n } from '../lib/useI18n';
 import {
     User, MapPin, Globe, Gem, ClipboardList, Ruler, BookOpen,
@@ -217,7 +217,7 @@ export default function SettingsCategoryPanel({ category }) {
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                         </span>
                         <FolderOpen size={14} style={{ color: colors.color, flexShrink: 0 }} />
-                        <span className="scp-folder-name">{node.name}</span>
+                        <span className="scp-folder-name">{getBuiltInFolderLabel(node.name, text)}</span>
                         <span className="scp-folder-count">{children.filter(c => c.type === 'item').length}</span>
                         <Tooltip content={text('新建条目', 'New Entry', 'Новая запись')}>
                             <button

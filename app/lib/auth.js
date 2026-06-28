@@ -3,6 +3,8 @@
 // ==================== Firebase Auth 封装 ====================
 // 提供统一的认证接口，供 SettingsPanel 和 persistence 层使用
 
+import { localizedError } from './runtime-i18n';
+
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -103,21 +105,21 @@ export function onAuthChange(callback) {
 
 // 邮箱 + 密码登录
 export async function signInWithEmail(email, password) {
-    if (!auth) throw new Error('Firebase 未配置');
+    if (!auth) throw localizedError('Firebase 未配置', 'Firebase is not configured.', 'Firebase не настроен.');
     const result = await signInWithEmailAndPassword(auth, email, password);
     return result.user;
 }
 
 // 邮箱 + 密码注册
 export async function signUpWithEmail(email, password) {
-    if (!auth) throw new Error('Firebase 未配置');
+    if (!auth) throw localizedError('Firebase 未配置', 'Firebase is not configured.', 'Firebase не настроен.');
     const result = await createUserWithEmailAndPassword(auth, email, password);
     return result.user;
 }
 
 // Google 登录
 export async function signInWithGoogle() {
-    if (!auth) throw new Error('Firebase 未配置');
+    if (!auth) throw localizedError('Firebase 未配置', 'Firebase is not configured.', 'Firebase не настроен.');
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     return result.user;
@@ -144,7 +146,7 @@ export function getUserProfile() {
 
 // 更新用户个人资料（昵称 / 头像）
 export async function updateUserProfile({ displayName, photoURL }) {
-    if (!auth?.currentUser) throw new Error('未登录');
+    if (!auth?.currentUser) throw localizedError('未登录', 'Not signed in.', 'Вы не вошли в систему.');
     const { updateProfile } = await import('firebase/auth');
     await updateProfile(auth.currentUser, { displayName, photoURL });
     // 刷新内部缓存

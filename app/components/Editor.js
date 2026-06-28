@@ -416,6 +416,15 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
         runRestore();
     }, []);
 
+    // 占位符绕过 useI18n 的 hydration gate：editor 在首次渲染（gate 仍为 'zh'）时创建，
+    // 且 Tiptap Placeholder 创建后无法可靠动态改，所以这里直接读持久化的真实语言
+    // (author-lang，与 store 初始化同源)，确保英文/俄文用户加载即看到对应占位符。
+    const editorPlaceholder = (() => {
+        const lang = (typeof window !== 'undefined' && localStorage.getItem('author-lang')) || 'zh';
+        if (lang === 'en') return 'Start writing... let inspiration flow';
+        if (lang === 'ru') return 'Начните писать... пусть вдохновение течёт';
+        return '开始写作…让灵感自由流淌';
+    })();
     const editor = useEditor({
         immediatelyRender: false,
         extensions: [
@@ -424,7 +433,7 @@ const Editor = forwardRef(function Editor({ content, chapterId, workId = 'work-d
                 underline: false, // 避免与下方显式 Underline 重复注册
             }),
             Placeholder.configure({
-                placeholder: text('开始写作…让灵感自由流淌', 'Start writing... let inspiration flow', 'Начните писать... пусть вдохновение течёт'),
+                placeholder: editorPlaceholder,
             }),
             CharacterCount,
             Highlight.configure({ multicolor: true }),

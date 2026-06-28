@@ -99,7 +99,7 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         const token = searchParams.get('token');
         if (!token || !shares.has(token)) {
-            return withCors(NextResponse.json({ error: '分享不存在或已过期' }, { status: 404 }));
+            return withCors(NextResponse.json({ error: '分享不存在或已过期', code: 'SHARE_NOT_FOUND' }, { status: 404 }));
         }
 
         const share = shares.get(token);

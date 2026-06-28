@@ -19,22 +19,38 @@ function readErrorDetail(errorText) {
 async function embeddingErrorResponse(response, { provider, model }) {
     const detail = readErrorDetail(await response.text());
     let hint = '';
+    let hintCode = '';
 
     if (response.status === 401 || response.status === 403) {
+        hintCode = 'EMBED_HINT_AUTH';
         hint = '请检查 Embedding API Key 是否正确，并确认该 Key 有调用当前嵌入模型的权限。';
     } else if (response.status === 404) {
+        hintCode = 'EMBED_HINT_ADDR';
         hint = '请检查 Embedding API 地址是否正确。OpenAI 兼容地址通常需要包含 /v1，最终会请求 /embeddings。';
     } else if (response.status === 429) {
+        hintCode = 'EMBED_HINT_RATE';
         hint = '请求过于频繁或额度不足，请稍后重试，或降低重建频率。';
     }
 
     const prefix = `${provider || 'Embedding'} 模型 ${model || '未指定'} 调用失败 (${response.status})`;
-    return Response.json({ error: [prefix, detail, hint].filter(Boolean).join('：') }, { status: response.status });
+    // 保留中文兜底全文（无 code 的消费方仍可读）；同时返回结构化字段供前端按 code 本地化
+    return Response.json({
+        error: [prefix, detail, hint].filter(Boolean).join('：'),
+        code: 'EMBED_CALL_FAILED',
+        provider: provider || '',
+        model: model || '',
+        status: response.status,
+        detail: detail || '',
+        hintCode,
+    }, { status: response.status });
 }
 
 function invalidEmbeddingResponse(provider, model) {
     return Response.json({
         error: `${provider || 'Embedding'} 模型 ${model || '未指定'} 没有返回有效向量，请确认选择的是 Embedding 模型而不是对话模型。`,
+        code: 'EMBED_NO_VECTOR',
+        provider: provider || '',
+        model: model || '',
     }, { status: 502 });
 }
 
@@ -79,7 +95,7 @@ export async function POST(request) {
         const baseUrl = normalizeOpenAIBaseUrl(rawBaseUrl);
 
         if (!baseUrl) {
-            return Response.json({ error: '请先填写 Embedding 兼容 API 地址' }, { status: 400 });
+            return Response.json({ error: '请先填写 Embedding 兼容 API 地址', code: 'NO_BASE_URL_EMBED' }, { status: 400 });
         }
 
         const embedModelName = isCustomEmbed
@@ -87,13 +103,13 @@ export async function POST(request) {
             : (apiConfig.embedModel || getDefaultEmbeddingModel(provider));
 
         if (!embedModelName) {
-            return Response.json({ error: '请先选择或填写 Embedding 模型' }, { status: 400 });
+            return Response.json({ error: '请先选择或填写 Embedding 模型', code: 'NO_EMBED_MODEL' }, { status: 400 });
         }
         if (!apiKey) {
-            return Response.json({ error: isCustomEmbed ? '请在 API 配置中填写独立的 Embedding API Key' : '请先配置 API Key' }, { status: 400 });
+            return Response.json({ error: isCustomEmbed ? '请在 API 配置中填写独立的 Embedding API Key' : '请先配置 API Key', code: isCustomEmbed ? 'NO_EMBED_KEY' : 'NO_API_KEY_FOR_EMBED' }, { status: 400 });
         }
         if (!text || typeof text !== 'string') {
-            return Response.json({ error: '无效的文本输入' }, { status: 400 });
+            return Response.json({ error: '无效的文本输入', code: 'INVALID_INPUT' }, { status: 400 });
         }
 
         const urls = baseUrl.endsWith('/v1') || baseUrl.endsWith('/v1beta')
@@ -135,6 +151,8 @@ export async function POST(request) {
         return invalidEmbeddingResponse(provider, embedModelName);
     } catch (error) {
         console.error('Embedding API Error:', error?.message || error);
-        return Response.json({ error: error?.message || 'Embedding 请求失败' }, { status: 500 });
+        // 上游/JS 原文优先；为空时回退中文文案并加 code 供前端本地化
+        if (error?.message) return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ error: 'Embedding 请求失败', code: 'EMBED_REQUEST_FAILED' }, { status: 500 });
     }
 }

@@ -22,6 +22,8 @@ import { buildContext, compileSystemPrompt, compileUserPrompt, getContextItems, 
 import { addTokenRecord } from './lib/token-stats';
 import { getProjectSettings, WRITING_MODES, getWritingMode, addSettingsNode, updateSettingsNode, deleteSettingsNode, getSettingsNodes, getActiveWorkId } from './lib/settings';
 import { resolveAiEndpoint } from './lib/ai-provider-compat';
+import { localizeApiError } from './lib/api-error-i18n';
+import { tt } from './lib/runtime-i18n';
 import {
   loadSessionStore, saveSessionStore, createSession, getActiveSession,
 } from './lib/chat-sessions';
@@ -753,7 +755,7 @@ export default function Home() {
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const data = await res.json();
-        showToast(data.error || t('page.toastRequestFailed'), 'error');
+        showToast(localizeApiError(data, tt) || t('page.toastRequestFailed'), 'error');
         return;
       }
 

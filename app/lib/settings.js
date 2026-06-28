@@ -5,6 +5,7 @@
 import { persistGet, persistSet, persistDel } from './persistence';
 import { getEmbedding } from './embeddings';
 import { migrateApiConfigToCompatible } from './ai-provider-compat';
+import { localizedError } from './runtime-i18n';
 
 const SETTINGS_KEY = 'author-project-settings';
 
@@ -901,6 +902,46 @@ const WORK_SUB_CATEGORIES = [
     { suffix: 'custom', name: '自定义设定', category: 'custom', type: 'folder', subFolders: [] },
 ];
 
+// ── 内置默认名的显示层 i18n ──
+// 这些子分类名 / 作品名会被写入用户数据（中文），无法直接改数据（会破坏老作品、
+// 也分不清是不是用户自己改的）。所以只在「渲染时」翻译：名字仍是内置默认中文 → 显示译名；
+// 用户改过（不在表内）→ 原样返回。text 由调用方从 useI18n 传入：text(zh, en, ru)。
+const BUILTIN_FOLDER_LABELS = {
+    '主要角色': ['Main Characters', 'Главные персонажи'],
+    '次要角色': ['Supporting Characters', 'Второстепенные персонажи'],
+    '阵营/势力': ['Factions', 'Фракции'],
+    '主要场景': ['Key Locations', 'Ключевые места'],
+    '自然环境': ['Natural Environment', 'Природная среда'],
+    '历史/纪元': ['History / Eras', 'История / Эпохи'],
+    '社会/政治': ['Society / Politics', 'Общество / Политика'],
+    '文化/习俗': ['Culture / Customs', 'Культура / Обычаи'],
+    '力量体系': ['Power System', 'Система сил'],
+    '武器/装备': ['Weapons / Equipment', 'Оружие / Снаряжение'],
+    '特殊道具': ['Special Items', 'Особые предметы'],
+    '主线': ['Main Plot', 'Основной сюжет'],
+    '支线': ['Subplots', 'Побочные линии'],
+    '伏笔': ['Foreshadowing', 'Предвестия'],
+    '文风规范': ['Style Guide', 'Стилистика'],
+    '禁忌/注意': ['Taboos / Notes', 'Табу / Примечания'],
+};
+
+const BUILTIN_WORK_NAME_LABELS = {
+    '默认作品': ['Default Work', 'Работа по умолчанию'],
+    '新作品': ['New Work', 'Новое произведение'],
+};
+
+export function getBuiltInFolderLabel(name, text) {
+    if (!name || typeof text !== 'function') return name;
+    const m = BUILTIN_FOLDER_LABELS[name];
+    return m ? text(name, m[0], m[1]) : name;
+}
+
+export function getBuiltInWorkName(name, text) {
+    if (!name || typeof text !== 'function') return name;
+    const m = BUILTIN_WORK_NAME_LABELS[name];
+    return m ? text(name, m[0], m[1]) : name;
+}
+
 // 全局根分类（不属于任何作品）— 已废弃，所有规则均归属各作品
 const GLOBAL_ROOT_CATEGORIES = [];
 
@@ -1446,7 +1487,7 @@ export async function updateSettingsNode(id, updates, currentNodes, workId) {
         delete safeUpdates.parentId;
     }
     if (safeUpdates.parentId !== undefined && wouldCreateParentCycle(nodes, id, safeUpdates.parentId)) {
-        throw new Error('不能把分类移动到自身或它的子分类下');
+        throw localizedError('不能把分类移动到自身或它的子分类下', 'Cannot move a category into itself or its own subcategory.', 'Нельзя переместить категорию в саму себя или свою подкатегорию.');
     }
 
     // 先立即保存内容（不等 embedding），确保数据不丢失
@@ -1518,7 +1559,7 @@ export async function moveSettingsNode(id, newParentId) {
     const idx = nodes.findIndex(n => n.id === id);
     if (idx === -1) return null;
     if (wouldCreateParentCycle(nodes, id, newParentId)) {
-        throw new Error('不能把分类移动到自身或它的子分类下');
+        throw localizedError('不能把分类移动到自身或它的子分类下', 'Cannot move a category into itself or its own subcategory.', 'Нельзя переместить категорию в саму себя или свою подкатегорию.');
     }
     const siblings = nodes.filter(n => n.parentId === newParentId && n.id !== id);
     nodes[idx] = {

@@ -3,6 +3,9 @@
  * 支持 JSON / TXT / Markdown / DOCX / PDF 格式的互相转换
  */
 
+import { localizedError, tt } from './runtime-i18n';
+import { localizeApiError } from './api-error-i18n';
+
 // ==================== 字段映射表 ====================
 
 // 中文标签 → 字段 key 的映射（用于导入时自动匹配）
@@ -730,7 +733,7 @@ export async function parseDocxToText(file) {
     const arrayBuf = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuf });
     const html = result.value || '';
-    if (!html.trim()) throw new Error('文件内容为空');
+    if (!html.trim()) throw localizedError('文件内容为空', 'The file is empty.', 'Файл пуст.');
 
     const text = html
         // 标题转 Markdown 格式（保留结构）
@@ -754,7 +757,7 @@ export async function parseDocxToText(file) {
         .replace(/\n{3,}/g, '\n\n')
         .trim();
 
-    if (!text) throw new Error('文件内容为空');
+    if (!text) throw localizedError('文件内容为空', 'The file is empty.', 'Файл пуст.');
     return text;
 }
 
@@ -770,14 +773,14 @@ export async function parsePdfToText(file) {
     });
     if (!response.ok) {
         if (response.status === 413) {
-            throw new Error('PDF 文件体积过大，请尝试压缩后重新导入');
+            throw localizedError('PDF 文件体积过大，请尝试压缩后重新导入', 'The PDF is too large. Please compress it and re-import.', 'PDF слишком большой. Сожмите его и импортируйте снова.');
         }
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `PDF 解析失败 (${response.status})`);
+        throw new Error(localizeApiError(data, tt) || `${tt('PDF 解析失败', 'PDF parsing failed', 'Не удалось разобрать PDF')} (${response.status})`);
     }
     const data = await response.json();
     if (!data.text?.trim()) {
-        throw new Error(data.warning || 'PDF 内容为空，可能是扫描件或图片PDF');
+        throw new Error(localizeApiError(data, tt) || tt('PDF 内容为空，可能是扫描件或图片PDF', 'The PDF has no extractable text — it may be a scan or image-only PDF.', 'В PDF нет извлекаемого текста — возможно, это скан или PDF из изображений.'));
     }
     return data.text;
 }

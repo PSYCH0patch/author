@@ -21,7 +21,7 @@ export async function POST() {
 
     if (!existsSync(gitDir)) {
         return new Response(
-            JSON.stringify({ error: '非源码部署环境，无法执行自动更新' }),
+            JSON.stringify({ error: '非源码部署环境，无法执行自动更新', code: 'NOT_SOURCE_DEPLOY' }),
             { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
     }
@@ -51,7 +51,7 @@ export async function POST() {
                             step: stepInfo.step, total: stepInfo.total, label: stepInfo.label,
                             status: 'error', log: result.output,
                         });
-                        send({ done: true, success: false, error: `步骤 ${stepInfo.step} 失败: ${stepInfo.label}` });
+                        send({ done: true, success: false, error: `步骤 ${stepInfo.step} 失败: ${stepInfo.label}`, code: 'UPDATE_STEP_FAILED', step: stepInfo.step, label: stepInfo.label });
                         controller.close();
                         return;
                     }

@@ -10,7 +10,7 @@ export async function POST(request) {
 
         if (!apiKey) {
             return NextResponse.json(
-                { error: '请先填入 API Key' },
+                { error: '请先填入 API Key', code: 'NO_API_KEY' },
                 { status: 400 }
             );
         }
@@ -31,7 +31,7 @@ export async function POST(request) {
     } catch (error) {
         console.error('拉取模型列表错误:', error);
         return NextResponse.json(
-            { error: '网络连接失败，请检查 API 地址' },
+            { error: '网络连接失败，请检查 API 地址', code: 'NETWORK_ERROR' },
             { status: 500 }
         );
     }
@@ -107,7 +107,7 @@ async function fetchOpenAIModels(apiKey, baseUrl, embedOnly, provider, proxyUrl)
     const base = normalizeOpenAIBaseUrl(baseUrl);
     if (!base) {
         return NextResponse.json(
-            { error: '请先填写 API 地址' },
+            { error: '请先填写 API 地址', code: 'NO_BASE_URL' },
             { status: 400 }
         );
     }
@@ -170,7 +170,7 @@ async function fetchOpenAIModels(apiKey, baseUrl, embedOnly, provider, proxyUrl)
             const knownModels = KNOWN_EMBED_MODELS[provider];
             if (knownModels) return NextResponse.json({ models: knownModels });
         }
-        return NextResponse.json({ error: '未能获取到模型列表，请检查 API 地址和 Key 是否正确' }, { status: 404 });
+        return NextResponse.json({ error: '未能获取到模型列表，请检查 API 地址和 Key 是否正确', code: 'MODELS_FETCH_FAILED' }, { status: 404 });
     }
 
     let models = rawModels;
@@ -210,7 +210,7 @@ async function handleFetchError(response) {
     const errorText = await response.text();
     if (response.status === 401 || response.status === 403) {
         return NextResponse.json(
-            { error: 'API Key 无效或无权限' },
+            { error: 'API Key 无效或无权限', code: 'INVALID_KEY' },
             { status: 401 }
         );
     }
@@ -229,7 +229,7 @@ async function handleFetchError(response) {
 async function fetchClaudeModels(apiKey, baseUrl, proxyUrl) {
     const base = String(baseUrl || '').trim().replace(/\/+$/, '');
     if (!base) {
-        return NextResponse.json({ error: '请先填写 Claude 兼容 API 地址' }, { status: 400 });
+        return NextResponse.json({ error: '请先填写 Claude 兼容 API 地址', code: 'NO_BASE_URL_CLAUDE' }, { status: 400 });
     }
 
     const endpoint = base.endsWith('/v1') ? base + '/models?limit=100' : base + '/v1/models?limit=100';
@@ -269,7 +269,7 @@ async function fetchClaudeModels(apiKey, baseUrl, proxyUrl) {
 async function fetchGeminiModels(apiKey, baseUrl, embedOnly, proxyUrl) {
     const base = String(baseUrl || '').trim().replace(/\/+$/, '');
     if (!base) {
-        return NextResponse.json({ error: '请先填写 Gemini 原生 API 地址（通常以 /v1beta 结尾）' }, { status: 400 });
+        return NextResponse.json({ error: '请先填写 Gemini 原生 API 地址（通常以 /v1beta 结尾）', code: 'NO_BASE_URL_GEMINI' }, { status: 400 });
     }
 
     let allModels = [];

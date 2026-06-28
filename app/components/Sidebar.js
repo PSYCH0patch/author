@@ -19,6 +19,8 @@ import ExitSyncModal from './ExitSyncModal';
 import { buildChapterSynopsisText, getChapterSynopsis, hasChapterSynopsis, normalizeChapterSynopsis, parseGeneratedSynopsis, stripChapterHtml } from '../lib/chapter-synopsis';
 import { buildChapterMemoryGroupText, buildChapterSourceText, getChapterMemoryGroups, hasChapterMemoryGroup, normalizeChapterMemoryGroup, saveChapterMemoryGroups } from '../lib/chapter-memory-groups';
 import { resolveAiEndpoint } from '../lib/ai-provider-compat';
+import { localizeApiError } from '../lib/api-error-i18n';
+import { tt } from '../lib/runtime-i18n';
 
 /** 更多操作下拉菜单（Portal 渲染到 body，彻底避免 overflow 裁剪） */
 function MoreMenuPortal({ anchorRef, t, setShowSettings, setShowMoreMenu, onOpenHelp, setShowGitPopup }) {
@@ -180,7 +182,7 @@ async function readAiTextStream(response) {
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
         const data = await response.json();
-        throw new Error(data.error || '请求失败');
+        throw new Error(localizeApiError(data, tt) || tt('请求失败', 'Request failed', 'Запрос не выполнен'));
     }
 
     const reader = response.body?.getReader();

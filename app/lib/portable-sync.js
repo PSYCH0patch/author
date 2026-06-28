@@ -1,6 +1,8 @@
 'use client';
 
 import { isSyncableKey } from './sync-key-policy';
+import { localizedError, tt } from './runtime-i18n';
+import { localizeApiError } from './api-error-i18n';
 
 const SETTINGS_KEY = 'author-sync-settings';
 const SECRET_PREFIX = 'author-sync-secret-';
@@ -245,9 +247,9 @@ function manifestPath(basePath) {
 }
 
 function assertWebDavConfig(config) {
-    if (!config.endpoint) throw new Error('请填写 WebDAV 地址');
-    if (!config.username) throw new Error('请填写 WebDAV 账号');
-    if (!config.password) throw new Error('请填写 WebDAV 应用密码或授权码');
+    if (!config.endpoint) throw localizedError('请填写 WebDAV 地址', 'Please enter the WebDAV address.', 'Укажите адрес WebDAV.');
+    if (!config.username) throw localizedError('请填写 WebDAV 账号', 'Please enter the WebDAV username.', 'Укажите имя пользователя WebDAV.');
+    if (!config.password) throw localizedError('请填写 WebDAV 应用密码或授权码', 'Please enter the WebDAV app password or auth code.', 'Укажите пароль приложения или код авторизации WebDAV.');
 }
 
 async function webdavProxy(action, config, extra = {}) {
@@ -366,7 +368,7 @@ export async function testWebDavConnection(settingsOverride) {
     await webdavPutJson(testPath, expected, config);
     const actual = await webdavGetJson(testPath, config);
     await webdavDelete(testPath, config);
-    if (!actual?.ok) throw new Error('WebDAV 测试文件读取失败');
+    if (!actual?.ok) throw localizedError('WebDAV 测试文件读取失败', 'Failed to read the WebDAV test file.', 'Не удалось прочитать тестовый файл WebDAV.');
     return true;
 }
 
@@ -459,7 +461,7 @@ async function collectLocalEntries() {
 export async function pushAllToWebDav() {
     const settings = loadPortableSyncSettings();
     if (!settings.webdav.enabled) {
-        throw new Error('请先启用并保存 WebDAV 同步');
+        throw localizedError('请先启用并保存 WebDAV 同步', 'Please enable and save WebDAV sync first.', 'Сначала включите и сохраните синхронизацию WebDAV.');
     }
     const config = await getResolvedWebDavSettings(settings);
     const entries = await collectLocalEntries();
@@ -502,7 +504,7 @@ async function applyRemoteEntries(entries) {
 export async function pullAllFromWebDav() {
     const settings = loadPortableSyncSettings();
     if (!settings.webdav.enabled) {
-        throw new Error('请先启用并保存 WebDAV 同步');
+        throw localizedError('请先启用并保存 WebDAV 同步', 'Please enable and save WebDAV sync first.', 'Сначала включите и сохраните синхронизацию WebDAV.');
     }
     const config = await getResolvedWebDavSettings(settings);
     const manifest = await readManifest(config);
@@ -542,7 +544,7 @@ export async function createSyncSnapshot() {
 
 export async function applySyncSnapshot(snapshot) {
     if (!snapshot || snapshot.type !== 'author-sync-snapshot-v1' || !Array.isArray(snapshot.entries)) {
-        throw new Error('无效的局域网同步数据');
+        throw localizedError('无效的局域网同步数据', 'Invalid LAN sync data.', 'Недопустимые данные синхронизации по локальной сети.');
     }
     return await applyRemoteEntries(snapshot.entries);
 }
@@ -562,13 +564,13 @@ export async function createLanShare(minutes) {
         }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.error) throw new Error(data.error || '创建局域网分享失败');
+    if (!res.ok || data.error) throw new Error(localizeApiError(data, tt) || tt('创建局域网分享失败', 'Failed to create LAN share.', 'Не удалось создать общий доступ по локальной сети.'));
     return data;
 }
 
 export async function importLanShare(source) {
     const raw = String(source || '').trim();
-    if (!raw) throw new Error('请填写局域网同步链接、分享码或同步快照');
+    if (!raw) throw localizedError('请填写局域网同步链接、分享码或同步快照', 'Please enter the LAN sync link, share code, or sync snapshot.', 'Укажите ссылку, код общего доступа или снимок синхронизации по локальной сети.');
     if (raw.startsWith('{')) {
         return await applySyncSnapshot(JSON.parse(raw));
     }
@@ -577,6 +579,6 @@ export async function importLanShare(source) {
         : `/api/sync/lan?token=${encodeURIComponent(raw)}`;
     const res = await fetch(url, { method: 'GET', cache: 'no-store' });
     const snapshot = await res.json().catch(() => null);
-    if (!res.ok || snapshot?.error) throw new Error(snapshot?.error || '读取局域网同步数据失败');
+    if (!res.ok || snapshot?.error) throw new Error(localizeApiError(snapshot, tt) || tt('读取局域网同步数据失败', 'Failed to read LAN sync data.', 'Не удалось прочитать данные синхронизации по локальной сети.'));
     return await applySyncSnapshot(snapshot);
 }

@@ -67,7 +67,7 @@ export async function GET() {
             currentVersion = pkg.version;
         } catch {
             return NextResponse.json(
-                { error: '无法读取当前版本号' },
+                { error: '无法读取当前版本号', code: 'CANNOT_READ_VERSION' },
                 { status: 500 }
             );
         }
@@ -94,7 +94,7 @@ export async function GET() {
         );
     } catch (err) {
         return NextResponse.json(
-            { error: '检查更新失败', details: err.message },
+            { error: '检查更新失败', code: 'CHECK_UPDATE_FAILED', details: err.message },
             { status: 500 }
         );
     }

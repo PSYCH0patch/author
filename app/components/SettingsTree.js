@@ -8,6 +8,7 @@ import {
     Sparkles, Heart, Star, Shield, Zap, Feather, Compass, Flag, Tag, Layers
 } from 'lucide-react';
 import { useI18n } from '../lib/useI18n';
+import { getBuiltInFolderLabel } from '../lib/settings';
 
 // 分类的颜色和标识
 const CATEGORY_STYLES = {
@@ -100,7 +101,7 @@ function getCategoryStyle(category) {
 
 // 单个树节点
 function TreeNode({ node, nodes, selectedId, onSelect, onAdd, onDelete, onRename, onToggleEnabled, collapsedIds, onToggleCollapse, level = 0 }) {
-    const { t } = useI18n();
+    const { t, text } = useI18n();
     const [isRenaming, setIsRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState('');
     const children = nodes.filter(n => n.parentId === node.id && !(n.category === 'bookInfo' && n.type === 'special'));
@@ -185,7 +186,7 @@ function TreeNode({ node, nodes, selectedId, onSelect, onAdd, onDelete, onRename
                         style={{ border: '1px solid var(--accent)', borderRadius: 3, padding: '1px 4px', fontSize: 13, background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
                     />
                 ) : (
-                    <span className="tree-node-name">{node.name}</span>
+                    <span className="tree-node-name">{getBuiltInFolderLabel(node.name, text)}</span>
                 )}
 
                 {/* 启用/禁用开关（仅item节点） */}

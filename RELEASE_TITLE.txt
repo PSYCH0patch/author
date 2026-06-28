@@ -1,1 +1,1 @@
-统一字数口径，改进向量模型获取与移动端长回复稳定性 | Unified word count, improved embedding model discovery and mobile long-reply stability
+多语言报错与界面翻译全面补齐，移动端新增章节跳转与批量概要 | Full i18n for errors and UI, plus mobile chapter jump and batch synopsis

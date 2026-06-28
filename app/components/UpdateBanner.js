@@ -3,6 +3,18 @@
 import { useState, useEffect } from 'react';
 import { Bell, RefreshCw, X, Download } from 'lucide-react';
 import { useI18n } from '../lib/useI18n';
+import { localizeApiError } from '../lib/api-error-i18n';
+import { tt } from '../lib/runtime-i18n';
+
+// 自动更新进度的步骤标签按 step 号本地化（服务端发的 label 为中文兜底）
+export function stepLabel(sp) {
+    const map = {
+        1: tt('🔄 拉取最新代码', '🔄 Pulling latest code', '🔄 Получение последнего кода'),
+        2: tt('📦 安装依赖', '📦 Installing dependencies', '📦 Установка зависимостей'),
+        3: tt('🔨 构建项目', '🔨 Building project', '🔨 Сборка проекта'),
+    };
+    return map[sp.step] || sp.label || '';
+}
 
 export default function UpdateBanner() {
     const { t } = useI18n();
@@ -143,7 +155,7 @@ export default function UpdateBanner() {
                                 setUpdateResult({ success: true, message: t('update.updateSuccess') });
                             }
                         } else {
-                            setUpdateResult({ success: false, message: t('update.updateFailed') + ': ' + (data.error || '') });
+                            setUpdateResult({ success: false, message: t('update.updateFailed') + ': ' + (localizeApiError(data, tt) || '') });
                         }
                         setSourceProgress(null);
                     } else {
@@ -209,7 +221,7 @@ export default function UpdateBanner() {
                             ? (downloadProgress
                                 ? `⬇ ${downloadProgress.progress}%`
                                 : sourceProgress
-                                    ? `${sourceProgress.label} (${sourceProgress.step}/${sourceProgress.total})`
+                                    ? `${stepLabel(sourceProgress)} (${sourceProgress.step}/${sourceProgress.total})`
                                     : t('update.updating'))
                             : t('update.updateNow')
                         }

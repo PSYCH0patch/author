@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../lib/useI18n';
-import { getSettingsNodes, updateSettingsNode, deleteSettingsNode, saveSettingsNodes, getActiveWorkId, setActiveWorkId as setActiveWorkIdSetting, getAllWorks, getChatApiConfig, addWork, removeWork, addSettingsNode, renameWork, normalizeBookInfoGoals } from '../lib/settings';
+import { getSettingsNodes, updateSettingsNode, deleteSettingsNode, saveSettingsNodes, getActiveWorkId, setActiveWorkId as setActiveWorkIdSetting, getAllWorks, getChatApiConfig, addWork, removeWork, addSettingsNode, renameWork, normalizeBookInfoGoals, getBuiltInWorkName } from '../lib/settings';
 import { getChapters } from '../lib/storage';
 import { createPortal } from 'react-dom';
 import { promptInput } from '../lib/promptInput';
 import { resolveAiEndpoint } from '../lib/ai-provider-compat';
+import { localizeApiError } from '../lib/api-error-i18n';
 import {
     X, Maximize2, Minimize2, BookOpen, Users, MapPin, Globe, Gem, ClipboardList, Ruler,
     Layers, Clock, ChevronRight, FileText, Settings as SettingsIcon,
@@ -866,7 +867,7 @@ export default function BookInfoPanel() {
                                                 margin: 0, fontSize: 13, fontWeight: isViewing ? 600 : 500,
                                                 color: isViewing ? 'var(--accent, #6366f1)' : 'var(--text-primary)',
                                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                            }}>{w.name}</p>
+                                            }}>{getBuiltInWorkName(w.name, text)}</p>
                                             {isGlobalActive && (
                                                 <span style={{ fontSize: 10, color: '#10b981', fontWeight: 500 }}>{text('写作中', 'Writing', 'В работе')}</span>
                                             )}
@@ -989,7 +990,7 @@ export default function BookInfoPanel() {
                                     <input ref={coverInputRef} type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: 'none' }} />
                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                         <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-                                            {bookData.title || workName || text('未命名作品', 'Untitled Work', 'Безымянное произведение')}
+                                            {getBuiltInWorkName(bookData.title || workName, text) || text('未命名作品', 'Untitled Work', 'Безымянное произведение')}
                                         </h3>
                                         <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-muted)' }}>
                                             {t('bookInfo.intro')}
@@ -1037,7 +1038,7 @@ export default function BookInfoPanel() {
                                                 )}
                                                 <div>
                                                     <h4 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
-                                                        {bookData.title || text('未命名作品', 'Untitled Work', 'Безымянное произведение')}
+                                                        {getBuiltInWorkName(bookData.title, text) || text('未命名作品', 'Untitled Work', 'Безымянное произведение')}
                                                     </h4>
                                                     {bookData.genre && <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', fontSize: 10, fontWeight: 600, marginBottom: 6 }}>{bookData.genre}</span>}
                                                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
@@ -1127,7 +1128,7 @@ export default function BookInfoPanel() {
                                                             }
                                                         } else {
                                                             const data = await res.json();
-                                                            fullText = data.text || data.error || '';
+                                                            fullText = data.text || localizeApiError(data, text) || '';
                                                         }
                                                         const jsonMatch = fullText.match(/\{[\s\S]*\}/);
                                                         if (jsonMatch) {

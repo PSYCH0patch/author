@@ -36,9 +36,11 @@ import {
     setModelParams,
     getModelParams,
     getProviderInstances,
+    getBuiltInWorkName,
 } from '../lib/settings';
 import SettingsTree from './SettingsTree';
 import { useI18n } from '../lib/useI18n';
+import { localizeApiError } from '../lib/api-error-i18n';
 import SettingsItemEditor from './SettingsItemEditor';
 import { getModeRolePrompt } from '../lib/context-engine';
 import PortableSyncSettings from './PortableSyncSettings';
@@ -843,7 +845,7 @@ export default function SettingsPanel() {
                                     onBlur={e => { e.currentTarget.style.borderColor = 'var(--accent, #6366f1)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(99,102,241,0.08)'; }}
                                 >
                                     {works.map(w => (
-                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                        <option key={w.id} value={w.id}>{getBuiltInWorkName(w.name, text)}</option>
                                     ))}
                                 </select>
                             </div>
@@ -2405,7 +2407,7 @@ function ApiConfigForm({ data, onChange }) {
             const pType = instanceCfg?.providerType || data.provider;
             const res = await fetch('/api/ai/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: data.apiKey, baseUrl: data.baseUrl, provider: pType, proxyUrl: data.proxyUrl }) });
             const result = await res.json();
-            if (result.error) { setFetchedModels(null); setTestStatus({ success: false, error: result.error }); }
+            if (result.error) { setFetchedModels(null); setTestStatus({ success: false, error: localizeApiError(result, text) }); }
             else { setFetchedModels(result.models || []); setShowModelModal(true); setModelSearch(''); }
         } catch { setFetchedModels(null); setTestStatus({ success: false, error: t('apiConfig.fetchModelsFailed') }); }
     };
@@ -2419,7 +2421,7 @@ function ApiConfigForm({ data, onChange }) {
             const res = await fetch('/api/ai/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: embedKey, baseUrl: embedBase, provider: data.embedProvider, embedOnly: true, proxyUrl: data.proxyUrl }) });
             const result = await res.json();
             // 结果就近显示在向量模型区下方（旧逻辑写到对话模型的 testStatus，离这里几百行，用户看不到）
-            if (result.error) { setFetchedEmbedModels(null); setEmbedFetchMsg({ type: 'error', text: t('apiConfig.embedApiPrefix') + result.error }); }
+            if (result.error) { setFetchedEmbedModels(null); setEmbedFetchMsg({ type: 'error', text: t('apiConfig.embedApiPrefix') + localizeApiError(result, text) }); }
             else {
                 const embedModels = result.models || [];
                 setFetchedEmbedModels(embedModels);
@@ -2507,7 +2509,7 @@ function ApiConfigForm({ data, onChange }) {
             if (res.ok && !result.error) {
                 setBalanceInfo(result);
             } else {
-                setBalanceInfo({ error: result.error || text('查询失败', 'Query failed', 'Запрос не удался') });
+                setBalanceInfo({ error: localizeApiError(result, text) || text('查询失败', 'Query failed', 'Запрос не удался') });
             }
         } catch (e) {
             setBalanceInfo({ error: e.message || text('网络错误', 'Network error', 'Ошибка сети') });
@@ -2534,7 +2536,7 @@ function ApiConfigForm({ data, onChange }) {
                 if (res.ok && !result.error) {
                     setBalanceInfo(result);
                 } else {
-                    setBalanceInfo({ error: result.error || text('查询失败', 'Query failed', 'Запрос не удался') });
+                    setBalanceInfo({ error: localizeApiError(result, text) || text('查询失败', 'Query failed', 'Запрос не удался') });
                 }
             } catch (e) {
                 if (!cancelled) setBalanceInfo({ error: e.message || text('网络错误', 'Network error', 'Ошибка сети') });
@@ -2848,7 +2850,7 @@ function ApiConfigForm({ data, onChange }) {
                                 {/* 弹窗头 */}
                                 <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <div>
-                                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>可用模型列表</div>
+                                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{text('可用模型列表', 'Available models', 'Доступные модели')}</div>
                                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                                             {text(
                                                 `${getProviderLabel(currentProvider, text)} · 共 ${mergedModels.length} 个模型，勾选加入快切列表${unavailableCount > 0 ? ` · ${unavailableCount} 个已保存但未返回` : ''}`,
@@ -2905,10 +2907,10 @@ function ApiConfigForm({ data, onChange }) {
                                                         }}>{isInList ? '✓' : ''}</button>
                                                         {/* 模型名 */}
                                                         <span style={{ flex: 1, fontFamily: 'monospace', fontSize: 12, color: isActive ? 'var(--accent)' : 'var(--text-primary)', fontWeight: isActive ? 600 : 400, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => { update('model', m.id); }} title={m.isUnavailable ? text(`${m.id}（已保存，但未在本次拉取结果中）`, `${m.id} (saved, but not returned in this fetch)`, `${m.id} (сохранено, но не найдено в текущем списке)`) : text(`使用 ${m.id}`, `Use ${m.id}`, `Использовать ${m.id}`)}>{m.id}</span>
-                                                        {m.isUnavailable && <span style={{ fontSize: 9, color: 'var(--warning, #b45309)', background: 'color-mix(in srgb, var(--warning, #b45309) 12%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>未返回</span>}
-                                                        {isDeprecatedDeepSeekModel && <span style={{ fontSize: 9, color: 'var(--warning, #b45309)', background: 'color-mix(in srgb, var(--warning, #b45309) 12%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>2026-07-24 停用</span>}
+                                                        {m.isUnavailable && <span style={{ fontSize: 9, color: 'var(--warning, #b45309)', background: 'color-mix(in srgb, var(--warning, #b45309) 12%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>{text('未返回', 'Not returned', 'Не возвращено')}</span>}
+                                                        {isDeprecatedDeepSeekModel && <span style={{ fontSize: 9, color: 'var(--warning, #b45309)', background: 'color-mix(in srgb, var(--warning, #b45309) 12%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>{text('2026-07-24 停用', 'Deprecated 2026-07-24', 'Устарело 2026-07-24')}</span>}
                                                         {/* 模型参数指示 */}
-                                                        {hasParams && !isEditing && <span style={{ fontSize: 9, color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 10%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>自定义参数</span>}
+                                                        {hasParams && !isEditing && <span style={{ fontSize: 9, color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 10%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>{text('自定义参数', 'Custom params', 'Свои параметры')}</span>}
                                                         {/* 齿轮图标 */}
                                                         <button
                                                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? 'var(--accent)' : 'var(--text-muted)', fontSize: 14, padding: '2px 4px', flexShrink: 0, opacity: isEditing ? 1 : 0.5, transition: 'all 0.15s' }}
@@ -2917,7 +2919,7 @@ function ApiConfigForm({ data, onChange }) {
                                                             onClick={() => setEditingModelParams(isEditing ? null : m.id)}
                                                             title={text('模型独立参数', 'Per-model parameters', 'Параметры отдельной модели')}
                                                         >⚙️</button>
-                                                        {isActive && <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>当前</span>}
+                                                        {isActive && <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>{text('当前', 'Current', 'Текущая')}</span>}
                                                     </div>
                                                     {/* 模型级参数编辑面板 */}
                                                     {isEditing && (() => {
@@ -2933,7 +2935,7 @@ function ApiConfigForm({ data, onChange }) {
                                                         };
                                                         return (
                                                             <div style={{ margin: '4px 0 8px 32px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid var(--border-light)' }}>
-                                                                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>模型独立参数（覆盖供应商默认值）</div>
+                                                                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>{text('模型独立参数（覆盖供应商默认值）', 'Per-model parameters (override provider defaults)', 'Параметры модели (переопределяют настройки провайдера)')}</div>
                                                                 {/* Temperature */}
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                                                                     <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 70 }}>Temperature</span>
@@ -2950,22 +2952,22 @@ function ApiConfigForm({ data, onChange }) {
                                                                 </div>
                                                                 {/* 上下文长度 */}
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 70 }}>上下文</span>
+                                                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 70 }}>{text('上下文', 'Context', 'Контекст')}</span>
                                                                     <input type="number" min="1024" step="1024" value={mp.maxContextLength ?? ''} onChange={e => updateParam('maxContextLength', parseInt(e.target.value) || 4096)} placeholder={text('默认', 'Default', 'По умолчанию')} style={{ flex: 1, padding: '2px 6px', border: '1px solid var(--border-light)', borderRadius: 3, background: 'var(--bg-primary)', fontSize: 11, color: 'var(--text-primary)' }} />
                                                                     {mp.maxContextLength != null && <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 10, padding: 0 }} onClick={() => clearParam('maxContextLength')} title={text('恢复默认', 'Reset to default', 'Сбросить')}>✕</button>}
                                                                 </div>
                                                                 {/* 输出 Token */}
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 70 }}>输出Token</span>
+                                                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 70 }}>{text('输出Token', 'Output tokens', 'Выходные токены')}</span>
                                                                     <input type="number" min="256" step="256" value={mp.maxOutputTokens ?? ''} onChange={e => updateParam('maxOutputTokens', parseInt(e.target.value) || 4096)} placeholder={text('默认', 'Default', 'По умолчанию')} style={{ flex: 1, padding: '2px 6px', border: '1px solid var(--border-light)', borderRadius: 3, background: 'var(--bg-primary)', fontSize: 11, color: 'var(--text-primary)' }} />
                                                                     {mp.maxOutputTokens != null && <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 10, padding: 0 }} onClick={() => clearParam('maxOutputTokens')} title={text('恢复默认', 'Reset to default', 'Сбросить')}>✕</button>}
                                                                 </div>
                                                                 {/* 思考等级 */}
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 70 }}>思考等级</span>
+                                                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 70 }}>{text('思考等级', 'Reasoning', 'Рассуждения')}</span>
                                                                     <div style={{ display: 'flex', gap: 3, flex: 1 }}>
                                                                         {[
-                                                                            { key: null, label: '默认' },
+                                                                            { key: null, label: text('默认', 'Default', 'По умолчанию') },
                                                                             { key: 'low', label: 'Low' },
                                                                             { key: 'medium', label: 'Mid' },
                                                                             { key: 'high', label: 'High' },
@@ -2983,14 +2985,14 @@ function ApiConfigForm({ data, onChange }) {
                                 </div>
                                 {/* 底部 */}
                                 <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>已勾选 {(data.providerConfigs?.[data.provider]?.models || []).length} 个模型</span>
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{text(`已勾选 ${(data.providerConfigs?.[data.provider]?.models || []).length} 个模型`, `${(data.providerConfigs?.[data.provider]?.models || []).length} selected`, `Выбрано: ${(data.providerConfigs?.[data.provider]?.models || []).length}`)}</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         {unavailableCount > 0 && (
                                             <button style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid var(--warning, #b45309)', background: 'transparent', color: 'var(--warning, #b45309)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={removeUnavailableModels}>
-                                                清理未返回模型 ({unavailableCount})
+                                                {text(`清理未返回模型 (${unavailableCount})`, `Clear missing (${unavailableCount})`, `Очистить отсутствующие (${unavailableCount})`)}
                                             </button>
                                         )}
-                                        <button style={{ padding: '6px 20px', borderRadius: 'var(--radius-sm, 6px)', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowModelModal(false)}>完成</button>
+                                        <button style={{ padding: '6px 20px', borderRadius: 'var(--radius-sm, 6px)', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowModelModal(false)}>{text('完成', 'Done', 'Готово')}</button>
                                     </div>
                                 </div>
                             </div>
@@ -3001,11 +3003,11 @@ function ApiConfigForm({ data, onChange }) {
                     {/* 连接测试 */}
                     <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                         <button className="btn btn-ghost btn-sm" onClick={handleTestConnection} disabled={testStatus === 'loading'} style={{ fontSize: 12 }}>
-                            {testStatus === 'loading' ? '测试中...' : <><Plug size={12} style={{ marginRight: 4 }} />测试连接</>}
+                            {testStatus === 'loading' ? text('测试中...', 'Testing...', 'Проверка...') : <><Plug size={12} style={{ marginRight: 4 }} />{text('测试连接', 'Test connection', 'Проверить связь')}</>}
                         </button>
                         {testStatus && testStatus !== 'loading' && (
                             <span style={{ fontSize: 12, color: testStatus.success ? 'var(--success)' : 'var(--error)', alignSelf: 'center' }}>
-                                {testStatus.success ? <><CheckCircle2 size={12} style={{ marginRight: 4 }} />连接成功</> : <><XCircle size={12} style={{ marginRight: 4 }} />{testStatus.error || '连接失败'}</>}
+                                {testStatus.success ? <><CheckCircle2 size={12} style={{ marginRight: 4 }} />{text('连接成功', 'Connected', 'Подключено')}</> : <><XCircle size={12} style={{ marginRight: 4 }} />{localizeApiError(testStatus, text) || text('连接失败', 'Connection failed', 'Ошибка подключения')}</>}
                             </span>
                         )}
                     </div>
@@ -3031,7 +3033,7 @@ function ApiConfigForm({ data, onChange }) {
                                     ))}
                                 </div>
                                 {resolvedProviderType === 'custom'
-                                    ? <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>自定义供应商仅支持 Function Calling (外部搜索) 方式</div>
+                                    ? <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{text('自定义供应商仅支持 Function Calling (外部搜索) 方式', 'Custom providers only support Function Calling (external search)', 'Свои провайдеры поддерживают только Function Calling (внешний поиск)')}</div>
                                     : <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{t('apiConfig.searchModeHint') || '内置搜索速度更快，外部搜索可自定义来源'}</div>
                                 }
                             </div>
@@ -3051,7 +3053,7 @@ function ApiConfigForm({ data, onChange }) {
                                     <FieldInput label={`${(data.searchConfig?.tool || 'Tavily').charAt(0).toUpperCase() + (data.searchConfig?.tool || 'tavily').slice(1)} API Key`} value={data.searchConfig?.apiKey || ''} onChange={v => onChange({ ...data, searchConfig: { ...(data.searchConfig || {}), apiKey: v } })} placeholder={text(`填入 ${data.searchConfig?.tool || 'Tavily'} API Key（多个用逗号分隔可轮询）`, `Enter ${data.searchConfig?.tool || 'Tavily'} API keys. Use commas to rotate multiple keys.`, `Введите API key ${data.searchConfig?.tool || 'Tavily'}. Несколько ключей можно разделить запятыми.`)} secret />
                                     {!data.searchConfig?.apiKey && (
                                         <div style={{ fontSize: 11, color: 'var(--error)', marginTop: -8, marginBottom: 6, paddingLeft: 2 }}>
-                                            <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'text-bottom' }} />当前供应商需要外部搜索 API Key 才能使用联网搜索（<a href={data.searchConfig?.tool === 'exa' ? 'https://exa.ai' : 'https://tavily.com'} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>点此获取</a>）
+                                            <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'text-bottom' }} />{text('当前供应商需要外部搜索 API Key 才能使用联网搜索（', 'This provider needs an external search API key for web search (', 'Этому провайдеру нужен внешний API-ключ поиска для веб-поиска (')}<a href={data.searchConfig?.tool === 'exa' ? 'https://exa.ai' : 'https://tavily.com'} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{text('点此获取', 'get one here', 'получить здесь')}</a>{text('）', ')', ')')}
                                         </div>
                                     )}
                                     <FieldInput label={text(`${(data.searchConfig?.tool || 'Tavily').charAt(0).toUpperCase() + (data.searchConfig?.tool || 'tavily').slice(1)} API 地址`, `${(data.searchConfig?.tool || 'Tavily').charAt(0).toUpperCase() + (data.searchConfig?.tool || 'tavily').slice(1)} API URL`, `${(data.searchConfig?.tool || 'Tavily').charAt(0).toUpperCase() + (data.searchConfig?.tool || 'tavily').slice(1)} API URL`)} value={data.searchConfig?.baseUrl || ''} onChange={v => onChange({ ...data, searchConfig: { ...(data.searchConfig || {}), baseUrl: v } })} placeholder={data.searchConfig?.tool === 'exa' ? text('https://api.exa.ai（默认，可留空）', 'https://api.exa.ai (default, can be blank)', 'https://api.exa.ai (по умолчанию, можно оставить пустым)') : text('https://api.tavily.com（默认，可留空）', 'https://api.tavily.com (default, can be blank)', 'https://api.tavily.com (по умолчанию, можно оставить пустым)')} />
@@ -3269,14 +3271,14 @@ function ApiConfigForm({ data, onChange }) {
                                             configs[data.embedProvider] = { ...configs[data.embedProvider], models };
                                         }
                                         onChange({ ...data, embedProviderConfigs: configs });
-                                    }}>{isInList ? '☑ 已在快切列表' : '☐ 加入快切列表'}</button>
+                                    }}>{isInList ? text('☑ 已在快切列表', '☑ In quick list', '☑ В списке') : text('☐ 加入快切列表', '☐ Add to quick list', '☐ В быстрый список')}</button>
                                 );
                             })()}
                             {embedFetchMsg && (
                                 <div style={{ fontSize: 11, color: embedFetchMsg.type === 'success' ? 'var(--success)' : 'var(--error)', margin: '6px 0 4px' }}>{embedFetchMsg.text}</div>
                             )}
                             {Array.isArray(fetchedEmbedModels) && fetchedEmbedModels.length === 0 && (
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 4px' }}>未找到嵌入模型，可手动输入模型名（如 embedding-3）</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 4px' }}>{text('未找到嵌入模型，可手动输入模型名（如 embedding-3）', 'No embedding models found. Enter a model name manually (e.g. embedding-3)', 'Модели эмбеддингов не найдены. Введите имя модели вручную (например, embedding-3)')}</div>
                             )}
                         </div>
 
@@ -3302,7 +3304,7 @@ function ApiConfigForm({ data, onChange }) {
                                 <div style={{ background: 'var(--bg-primary)', borderRadius: 'var(--radius-lg, 14px)', boxShadow: '0 16px 48px rgba(0,0,0,0.25)', width: 480, maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'modelPickerFadeInDown 0.2s ease' }}>
                                     <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <div>
-                                            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>可用嵌入模型列表</div>
+                                            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{text('可用嵌入模型列表', 'Available embedding models', 'Доступные модели эмбеддингов')}</div>
                                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                                                 {text(
                                                     `${getProviderLabel(currentEmbedProvider, text)} · 共 ${mergedEmbedModels.length} 个模型，勾选加入快切列表${unavailableEmbedCount > 0 ? ` · ${unavailableEmbedCount} 个已保存但未返回` : ''}`,
@@ -3352,21 +3354,21 @@ function ApiConfigForm({ data, onChange }) {
                                                         }}>{isInList ? '✓' : ''}</button>
                                                         {/* 模型名 */}
                                                         <span style={{ flex: 1, fontFamily: 'monospace', fontSize: 12, color: isActive ? 'var(--accent)' : 'var(--text-primary)', fontWeight: isActive ? 600 : 400, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => { update('embedModel', m.id); }} title={m.isUnavailable ? text(`${m.id}（已保存，但未在本次拉取结果中）`, `${m.id} (saved, but not returned in this fetch)`, `${m.id} (сохранено, но не найдено в текущем списке)`) : text(`使用 ${m.id}`, `Use ${m.id}`, `Использовать ${m.id}`)}>{m.id}</span>
-                                                        {m.isUnavailable && <span style={{ fontSize: 9, color: 'var(--warning, #b45309)', background: 'color-mix(in srgb, var(--warning, #b45309) 12%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>未返回</span>}
-                                                        {isActive && <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>当前</span>}
+                                                        {m.isUnavailable && <span style={{ fontSize: 9, color: 'var(--warning, #b45309)', background: 'color-mix(in srgb, var(--warning, #b45309) 12%, transparent)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>{text('未返回', 'Not returned', 'Не возвращено')}</span>}
+                                                        {isActive && <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>{text('当前', 'Current', 'Текущая')}</span>}
                                                     </div>
                                                 );
                                             })}
                                     </div>
                                     <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>已勾选 {(data.embedProviderConfigs?.[data.embedProvider]?.models || []).length} 个模型</span>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{text(`已勾选 ${(data.embedProviderConfigs?.[data.embedProvider]?.models || []).length} 个模型`, `${(data.embedProviderConfigs?.[data.embedProvider]?.models || []).length} selected`, `Выбрано: ${(data.embedProviderConfigs?.[data.embedProvider]?.models || []).length}`)}</span>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             {unavailableEmbedCount > 0 && (
                                                 <button style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid var(--warning, #b45309)', background: 'transparent', color: 'var(--warning, #b45309)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={removeUnavailableEmbedModels}>
-                                                    清理未返回模型 ({unavailableEmbedCount})
+                                                    {text(`清理未返回模型 (${unavailableEmbedCount})`, `Clear missing (${unavailableEmbedCount})`, `Очистить отсутствующие (${unavailableEmbedCount})`)}
                                                 </button>
                                             )}
-                                            <button style={{ padding: '6px 20px', borderRadius: 'var(--radius-sm, 6px)', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowEmbedModelModal(false)}>完成</button>
+                                            <button style={{ padding: '6px 20px', borderRadius: 'var(--radius-sm, 6px)', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowEmbedModelModal(false)}>{text('完成', 'Done', 'Готово')}</button>
                                         </div>
                                     </div>
                                 </div>
@@ -3377,22 +3379,22 @@ function ApiConfigForm({ data, onChange }) {
                         {/* 重建向量 */}
                         <div style={{ marginTop: 8 }}>
                             <button style={{ padding: '8px 16px', border: '1px solid var(--accent)', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', cursor: rebuildStatus && !rebuildStatus.finished ? 'wait' : 'pointer', fontSize: 12, color: 'var(--accent)', fontWeight: 500, opacity: rebuildStatus && !rebuildStatus.finished ? 0.7 : 1 }} onClick={handleRebuildEmbeddings} disabled={rebuildStatus && !rebuildStatus.finished && !rebuildStatus.error}>
-                                {rebuildStatus && !rebuildStatus.finished && !rebuildStatus.error ? `向量化中... ${rebuildStatus.done}/${rebuildStatus.total}` : <><RefreshCw size={12} style={{ marginRight: 4 }} />重建所有设定向量</>}
+                                {rebuildStatus && !rebuildStatus.finished && !rebuildStatus.error ? text(`向量化中... ${rebuildStatus.done}/${rebuildStatus.total}`, `Vectorizing... ${rebuildStatus.done}/${rebuildStatus.total}`, `Векторизация... ${rebuildStatus.done}/${rebuildStatus.total}`) : <><RefreshCw size={12} style={{ marginRight: 4 }} />{text('重建所有设定向量', 'Rebuild all vectors', 'Перестроить все векторы')}</>}
                             </button>
                             {rebuildStatus?.finished && (
                                 <span style={{ marginLeft: 8, fontSize: 11, color: rebuildStatus.failed > 0 ? 'var(--warning)' : 'var(--success)' }}>
-                                    ✓ 完成！{rebuildStatus.done - rebuildStatus.failed}/{rebuildStatus.total} 成功{rebuildStatus.failed > 0 ? `，${rebuildStatus.failed} 失败` : ''}
+                                    {text(`✓ 完成！${rebuildStatus.done - rebuildStatus.failed}/${rebuildStatus.total} 成功${rebuildStatus.failed > 0 ? `，${rebuildStatus.failed} 失败` : ''}`, `✓ Done! ${rebuildStatus.done - rebuildStatus.failed}/${rebuildStatus.total} ok${rebuildStatus.failed > 0 ? `, ${rebuildStatus.failed} failed` : ''}`, `✓ Готово! ${rebuildStatus.done - rebuildStatus.failed}/${rebuildStatus.total} ок${rebuildStatus.failed > 0 ? `, ошибок ${rebuildStatus.failed}` : ''}`)}
                                 </span>
                             )}
                             {rebuildStatus?.error && (
-                                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--error)' }}>重建失败</span>
+                                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--error)' }}>{text('重建失败', 'Rebuild failed', 'Ошибка перестроения')}</span>
                             )}
                             {(rebuildStatus?.errorMessage && (rebuildStatus.failed > 0 || rebuildStatus.error)) && (
                                 <div style={{ fontSize: 11, color: rebuildStatus.error ? 'var(--error)' : 'var(--warning)', marginTop: 6, lineHeight: 1.5, wordBreak: 'break-word' }}>
-                                    失败原因：{rebuildStatus.errorMessage}
+                                    {text('失败原因：', 'Reason: ', 'Причина: ')}{rebuildStatus.errorMessage}
                                 </div>
                             )}
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>首次开启或更换嵌入模型后，需要重建向量才能使用 RAG 智能检索</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{text('首次开启或更换嵌入模型后，需要重建向量才能使用 RAG 智能检索', 'After enabling or switching the embedding model, rebuild vectors to use RAG retrieval', 'После включения или смены модели эмбеддингов перестройте векторы для использования RAG-поиска')}</div>
                         </div>
                     </div>
                 </div>

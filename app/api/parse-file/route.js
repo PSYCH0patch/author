@@ -17,7 +17,7 @@ export async function POST(request) {
         const file = formData.get('file');
 
         if (!file || typeof file === 'string') {
-            return NextResponse.json({ error: '未提供文件' }, { status: 400 });
+            return NextResponse.json({ error: '未提供文件', code: 'NO_FILE' }, { status: 400 });
         }
 
         const fileName = file.name.toLowerCase();
@@ -37,17 +37,17 @@ export async function POST(request) {
             const doc = await extractor.extract(buffer);
             text = doc.getBody() || '';
         } else {
-            return NextResponse.json({ error: '不支持的文件格式' }, { status: 400 });
+            return NextResponse.json({ error: '不支持的文件格式', code: 'UNSUPPORTED_FORMAT' }, { status: 400 });
         }
 
         if (!text.trim()) {
-            return NextResponse.json({ text: '', warning: '文件中未能提取到文本内容（可能是扫描件或图片PDF）' });
+            return NextResponse.json({ text: '', warning: '文件中未能提取到文本内容（可能是扫描件或图片PDF）', code: 'PARSE_NO_TEXT' });
         }
         return NextResponse.json({ text });
     } catch (err) {
         console.error('parse-file error:', err);
         return NextResponse.json(
-            { error: `解析失败：${err.message}` },
+            { error: `解析失败：${err.message}`, code: 'PARSE_FAILED', detail: err.message },
             { status: 500 }
         );
     }

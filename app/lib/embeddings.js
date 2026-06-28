@@ -1,19 +1,28 @@
 // 文本向量化与余弦相似度计算库
 
+import { tt } from './runtime-i18n';
+import { localizeApiError } from './api-error-i18n';
+
 // 错误退避缓存：API 连续失败时暂停重试 60 秒
 let _embedErrorUntil = 0;
 const EMBED_BACKOFF_MS = 60000;
 
 function describeEmbedError(status, bodyText) {
-    if (!bodyText) return `Embedding 请求失败 (${status})`;
+    const prefix = tt('Embedding 请求失败', 'Embedding request failed', 'Запрос Embedding не удался');
+    if (!bodyText) return `${prefix} (${status})`;
     try {
         const parsed = JSON.parse(bodyText);
+        // embed 路由带 code 时优先整体本地化（NO_BASE_URL_EMBED 等静态错误）
+        if (parsed?.code) {
+            const localized = localizeApiError(parsed, tt);
+            if (localized) return localized;
+        }
         const detail = parsed?.error?.message || parsed?.error || parsed?.message;
-        if (detail) return `Embedding 请求失败 (${status}): ${detail}`;
+        if (detail) return `${prefix} (${status}): ${detail}`;
     } catch {
         // Keep the original body when the API returns plain text or HTML.
     }
-    return `Embedding 请求失败 (${status}): ${bodyText}`;
+    return `${prefix} (${status}): ${bodyText}`;
 }
 
 /**
@@ -32,11 +41,11 @@ export async function getEmbedding(text, apiConfig, options = {}) {
     if (!text || text.trim() === '') return null;
     // 没有配置 Embedding Key 时静默跳过，不发请求
     if (!apiConfig?.embedApiKey && !apiConfig?.embeddingApiKey && !apiConfig?.apiKey) {
-        return fail('未配置 Embedding API Key');
+        return fail(tt('未配置 Embedding API Key', 'Embedding API Key is not configured', 'Ключ Embedding API не настроен'));
     }
     // 如果上次失败的退避期还没过，直接跳过
     if (!ignoreBackoff && Date.now() < _embedErrorUntil) {
-        return fail('Embedding API 处于短暂失败退避中，请稍后重试');
+        return fail(tt('Embedding API 处于短暂失败退避中，请稍后重试', 'Embedding API is in a brief failure backoff. Please retry later.', 'Embedding API временно недоступен, повторите позже.'));
     }
 
     try {
@@ -58,11 +67,11 @@ export async function getEmbedding(text, apiConfig, options = {}) {
         if (data.error) {
             const log = throwOnError ? console.error : console.warn;
             log('getEmbedding API error:', data.error);
-            return fail(data.error);
+            return fail(localizeApiError(data, tt));
         }
 
         if (!Array.isArray(data.embedding) || data.embedding.length === 0) {
-            return fail('Embedding API 未返回有效向量，请检查模型是否为 embedding 模型');
+            return fail(tt('Embedding API 未返回有效向量，请检查模型是否为 embedding 模型', 'Embedding API returned no valid vector. Please check that the selected model is an embedding model.', 'Embedding API не вернул вектор. Проверьте, что выбрана модель эмбеддингов.'));
         }
 
         return data.embedding;

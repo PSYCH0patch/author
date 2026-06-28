@@ -20,14 +20,14 @@ export async function POST(request) {
 
         if (!apiKey) {
             return new Response(
-                JSON.stringify({ error: '请先配置 Gemini 原生 API Key' }),
+                JSON.stringify({ error: '请先配置 Gemini 原生 API Key', code: 'NO_API_KEY_GEMINI' }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
 
         if (!baseUrl) {
             return new Response(
-                JSON.stringify({ error: '请先填写 Gemini 原生 API 地址（通常以 /v1beta 结尾）' }),
+                JSON.stringify({ error: '请先填写 Gemini 原生 API 地址（通常以 /v1beta 结尾）', code: 'NO_BASE_URL_GEMINI' }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
@@ -73,24 +73,25 @@ export async function POST(request) {
             const errorText = await response.text();
             console.error('Gemini API错误:', response.status, errorText);
 
-            const errorHandlers = {
-                400: () => {
-                    try {
-                        const errObj = JSON.parse(errorText);
-                        return `Gemini 请求错误：${errObj?.error?.message || errorText}`;
-                    } catch {
-                        return `Gemini 请求错误(400)：${errorText}`;
-                    }
-                },
-                401: () => 'API Key 无效或无权限，请检查你的 Gemini API Key',
-                403: () => 'API Key 无效或无权限，请检查你的 Gemini API Key',
-                429: () => '请求频率过高或配额不足，请稍后再试',
-            };
-            const errMsg = errorHandlers[response.status]?.()
-                || `Gemini 服务返回错误(${response.status})，请检查 API 配置`;
+            let errMsg = '';
+            let code = '';
+            let detail = '';
+            if (response.status === 400) {
+                try {
+                    const errObj = JSON.parse(errorText);
+                    detail = errObj?.error?.message || errorText;
+                } catch { detail = errorText; }
+                errMsg = `Gemini 请求错误：${detail}`; code = 'AI_SERVICE_ERROR';
+            } else if (response.status === 401 || response.status === 403) {
+                errMsg = 'API Key 无效或无权限，请检查你的 Gemini API Key'; code = 'INVALID_KEY';
+            } else if (response.status === 429) {
+                errMsg = '请求频率过高或配额不足，请稍后再试'; code = 'AI_RATE_LIMIT';
+            } else {
+                errMsg = `Gemini 服务返回错误(${response.status})，请检查 API 配置`; code = 'AI_RETURNED_ERROR';
+            }
 
             return new Response(
-                JSON.stringify({ error: errMsg }),
+                JSON.stringify({ error: errMsg, code, status: response.status, detail }),
                 { status: response.status, headers: { 'Content-Type': 'application/json' } }
             );
         }
@@ -200,7 +201,7 @@ export async function POST(request) {
     } catch (error) {
         console.error('Gemini 接口错误:', error);
         return new Response(
-            JSON.stringify({ error: '网络连接失败，请检查 API 地址是否正确' }),
+            JSON.stringify({ error: '网络连接失败，请检查 API 地址是否正确', code: 'NETWORK_ERROR_CHECK' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

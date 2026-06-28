@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useI18n } from '../lib/useI18n';
+import { localizeApiError } from '../lib/api-error-i18n';
+import { stepLabel } from './UpdateBanner';
 import { REPO, LEGAL_LANGUAGES, legalDocUrl } from '../lib/constants';
 import { downloadDiagnosticReport, recordDiagnosticEvent } from '../lib/diagnostics';
 
@@ -1906,7 +1908,7 @@ export default function HelpPanel({ open, onClose }) {
                                 setUpdateDone({ success: true, message: t('update.updateSuccess') });
                             }
                         } else {
-                            setUpdateDone({ success: false, message: t('update.updateFailed') + ': ' + (data.error || '') });
+                            setUpdateDone({ success: false, message: t('update.updateFailed') + ': ' + (localizeApiError(data, text) || '') });
                         }
                         setSourceProgress(null);
                     } else {
@@ -2155,7 +2157,7 @@ export default function HelpPanel({ open, onClose }) {
                         {updating && sourceProgress && (
                             <div style={{ margin: '16px 0' }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, opacity: 0.8 }}>
-                                    {sourceProgress.label}
+                                    {stepLabel(sourceProgress)}
                                     <span style={{ opacity: 0.5, marginLeft: 8 }}>
                                         ({sourceProgress.step}/{sourceProgress.total})
                                     </span>

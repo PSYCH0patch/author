@@ -6,6 +6,8 @@
 import { persistGet, persistSet } from './persistence';
 import { countWords } from './word-count';
 import { getAllWorks, getSettingsNodes, getActiveWorkId } from './settings';
+import { localizedError, tt } from './runtime-i18n';
+import { localizeApiError } from './api-error-i18n';
 import { getChapters } from './storage';
 
 const PROJECT_FILE_VERSION = 2;
@@ -315,7 +317,7 @@ function chapterBoundaryTitle(chapter, index) {
  */
 async function parseTxt(file) {
     const text = await file.text();
-    if (!text.trim()) throw new Error('文件内容为空');
+    if (!text.trim()) throw localizedError('文件内容为空', 'The file is empty.', 'Файл пуст.');
 
     const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const rawChapters = [];
@@ -340,7 +342,7 @@ async function parseTxt(file) {
  */
 async function parseMarkdown(file) {
     const text = await file.text();
-    if (!text.trim()) throw new Error('文件内容为空');
+    if (!text.trim()) throw localizedError('文件内容为空', 'The file is empty.', 'Файл пуст.');
 
     const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const rawChapters = [];
@@ -496,7 +498,7 @@ async function parseDocx(file) {
     const arrayBuf = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuf });
     const html = result.value || '';
-    if (!html.trim()) throw new Error('文件内容为空');
+    if (!html.trim()) throw localizedError('文件内容为空', 'The file is empty.', 'Файл пуст.');
 
     // 将 HTML 转为带换行的纯文本
     const text = html
@@ -510,7 +512,7 @@ async function parseDocx(file) {
         .replace(/\n{3,}/g, '\n\n')
         .trim();
 
-    if (!text) throw new Error('文件内容为空');
+    if (!text) throw localizedError('文件内容为空', 'The file is empty.', 'Файл пуст.');
 
     // 用章节正则拆分
     return splitTextToChapters(text);
@@ -530,14 +532,14 @@ async function parseViaApi(file) {
 
     if (!response.ok) {
         if (response.status === 413) {
-            throw new Error('文件体积过大，请尝试压缩 PDF 后重新导入');
+            throw localizedError('文件体积过大，请尝试压缩 PDF 后重新导入', 'The file is too large. Please compress the PDF and re-import.', 'Файл слишком большой. Сожмите PDF и импортируйте снова.');
         }
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `解析失败 (${response.status})`);
+        throw new Error(localizeApiError(data, tt) || `${tt('解析失败', 'Parse failed', 'Разбор не удался')} (${response.status})`);
     }
 
     const { text } = await response.json();
-    if (!text || !text.trim()) throw new Error('文件内容为空');
+    if (!text || !text.trim()) throw localizedError('文件内容为空', 'The file is empty.', 'Файл пуст.');
 
     return splitTextToChapters(text);
 }

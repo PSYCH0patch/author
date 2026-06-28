@@ -17,6 +17,7 @@ import { FolderOpen, Plus, X, Pencil, Trash2, RefreshCw, GitBranch, CornerDownLe
 import { useI18n } from '../lib/useI18n';
 import { copyTextToClipboard } from '../lib/clipboard';
 import { resolveAiEndpoint } from '../lib/ai-provider-compat';
+import { localizeApiError } from '../lib/api-error-i18n';
 
 const INLINE_THINK_OPEN = '<think>';
 const INLINE_THINK_CLOSE = '</think>';
@@ -1010,7 +1011,7 @@ export default function AiSidebar({ onInsertText }) {
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
             const data = await res.json();
-            throw new Error(data.error || tx('请求失败', 'Request failed', 'Запрос не выполнен'));
+            throw new Error(localizeApiError(data, tx) || tx('请求失败', 'Request failed', 'Запрос не выполнен'));
         }
 
         const reader = res.body.getReader();
