@@ -1129,7 +1129,7 @@ function ItemList({ nodes, rootFolder, category, selectedId, onSelect, onAddFold
                         onBlur={finishRename}
                         onKeyDown={e => { if (e.key === 'Enter') finishRename(); if (e.key === 'Escape') setRenamingId(null); }}
                         onClick={e => e.stopPropagation()} />
-                ) : <span style={{ ...S.treeName, opacity: isHidden ? 0.45 : 1, textDecoration: isHidden ? 'line-through' : 'none' }}>{node.name}</span>}
+                ) : <span style={{ ...S.treeName, opacity: isHidden ? 0.45 : 1, textDecoration: isHidden ? 'line-through' : 'none' }}>{getBuiltInFolderLabel(node.name, text)}</span>}
                 {isHidden && <span className="cstree-count" style={isHovered ? { display: 'none' } : undefined}><EyeOff size={11} style={{ color: 'var(--text-muted)', flexShrink: 0, opacity: 0.5 }} /></span>}
                 {renderActions(node, isHovered)}
             </div>

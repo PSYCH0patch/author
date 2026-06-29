@@ -247,7 +247,7 @@ export default function SettingsCategoryPanel({ category }) {
                     title={node.name}
                 >
                     <span className="scp-item-dot" style={{ background: colors.color }} />
-                    <span className="scp-item-name">{node.name}</span>
+                    <span className="scp-item-name">{getBuiltInFolderLabel(node.name, text)}</span>
                     {node.enabled === false && (
                         <EyeOff size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                     )}

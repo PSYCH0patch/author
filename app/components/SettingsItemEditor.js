@@ -593,7 +593,7 @@ function CharacterEditor({ node, onUpdate }) {
 
     return (
         <div>
-            <CharacterCardPreview name={node.name} content={content} onUpdate={update} />
+            <CharacterCardPreview name={getBuiltInFolderLabel(node.name, text)} content={content} onUpdate={update} />
 
             {/* === Bento Grid: 基础信息 + 外貌与性格 === */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 0 }}>
@@ -947,7 +947,7 @@ function FolderInfo({ node, nodes, onAdd, onUpdate }) {
                             </span>
                         )}
                     </div>
-                    <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>{node.name}</h3>
+                    <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>{getBuiltInFolderLabel(node.name, text)}</h3>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
                         {folders.length > 0 && `${text(`${folders.length} 个子文件夹`, `${folders.length} subfolders`, `Подпапок: ${folders.length}`)} · `}
                         {text(`${items.length} 个设定项`, `${items.length} entries`, `Записей: ${items.length}`)}
