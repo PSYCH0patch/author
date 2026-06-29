@@ -156,7 +156,7 @@ export default function Home() {
     chatStreaming, setChatStreaming
   } = useAppStore();
 
-  const { t } = useI18n();
+  const { t, text } = useI18n();
   const [showHelp, setShowHelp] = useState(false);
   const [memoryGroupsVersion, setMemoryGroupsVersion] = useState(0);
   const editorRef = useRef(null);
@@ -644,7 +644,7 @@ export default function Home() {
   const handleSplitActiveChapter = useCallback(async (draft) => {
     if (!activeChapter || !isWritableChapter(activeChapter)) return null;
     if (!draft || draft.beforeWordCount <= 0 || draft.afterWordCount <= 0) {
-      showToast('请把光标放在正文中间，拆分点前后都需要有内容', 'error');
+      showToast(text('请把光标放在正文中间，拆分点前后都需要有内容', 'Place the cursor in the middle of the text. Both sides of the split point need content.', 'Поместите курсор в середину текста. Обе стороны точки разделения должны содержать текст.'), 'error');
       return null;
     }
 
@@ -695,7 +695,7 @@ export default function Home() {
       index > currentIndex && isWritableChapter(chapter)
     );
     if (nextIndex === -1) {
-      showToast('当前章节后面没有可合并的章节', 'error');
+      showToast(text('当前章节后面没有可合并的章节', 'No chapter after the current one to merge', 'Нет главы после текущей для объединения'), 'error');
       return null;
     }
 

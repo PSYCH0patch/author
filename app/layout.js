@@ -32,8 +32,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
-        <title>Author - AI辅助创作平台</title>
-        <meta name="description" content="面向小说创作者的AI辅助写作工具，让创作更自由" />
+        <title>Author - AI-Assisted Writing Platform</title>
+        <meta name="description" content="AI-assisted writing tool for novelists. Write with more freedom." />
         <link
           rel="stylesheet"
           href="/katex/katex.min.css"

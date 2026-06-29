@@ -1,9 +1,10 @@
-'use client'; // 必须是客户端组件
+'use client';
 
 import { useEffect } from 'react';
 import { AlertTriangle, Download, RefreshCw, Trash2 } from 'lucide-react';
 import { downloadDiagnosticReport, initDiagnostics, recordDiagnosticEvent } from './lib/diagnostics';
 import { recoverFromChunkLoadError } from './lib/chunk-recovery';
+import { tt } from './lib/runtime-i18n';
 
 export default function Error({ error, reset }) {
     useEffect(() => {
@@ -17,7 +18,7 @@ export default function Error({ error, reset }) {
                 digest: error?.digest,
             },
         }, 'error');
-        console.error('全局捕获的客户端渲染错误:', error);
+        console.error('Global client render error caught:', error);
     }, [error]);
 
     const handleExportLog = () => {
@@ -33,7 +34,12 @@ export default function Error({ error, reset }) {
     };
 
     const handleClearData = () => {
-        if (window.confirm('警告：这将会清除浏览器本地所有的缓存数据（包括未导出的作品）、设定和状态！\n通常只有在持续白屏且刷新无法恢复时才使用此操作。\n\n确定要清空并重置吗？')) {
+        const confirmMsg = tt(
+            '警告：这将会清除浏览器本地所有的缓存数据（包括未导出的作品）、设定和状态！\n通常只有在持续白屏且刷新无法恢复时才使用此操作。\n\n确定要清空并重置吗？',
+            'WARNING: This will clear ALL local cache (including unexported works), settings, and state!\nOnly use this if the screen stays blank and refresh does not help.\n\nAre you sure you want to clear and reset?',
+            'ВНИМАНИЕ: Это удалит весь локальный кэш (включая неэкспортированные работы), настройки и состояние!\nИспользуйте только если экран остаётся пустым и обновление не помогает.\n\nВы уверены, что хотите очистить и сбросить?'
+        );
+        if (window.confirm(confirmMsg)) {
             localStorage.clear();
             sessionStorage.clear();
             window.location.href = '/';
@@ -43,7 +49,7 @@ export default function Error({ error, reset }) {
     return (
         <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            minHeight: '100vh', padding: '40px 20px', background: 'var(--bg-primary, #f9fafb)', 
+            minHeight: '100vh', padding: '40px 20px', background: 'var(--bg-primary, #f9fafb)',
             color: 'var(--text-primary, #111827)', textAlign: 'center', fontFamily: 'system-ui, -apple-system, sans-serif'
         }}>
             <div style={{
@@ -60,11 +66,26 @@ export default function Error({ error, reset }) {
                         <AlertTriangle size={32} />
                     </div>
                 </div>
-                
-                <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 16px', letterSpacing: '-0.02em' }}>啊哦，系统遇到了一个意外错误</h1>
+
+                <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 16px', letterSpacing: '-0.02em' }}>
+                    {tt(
+                        '啊哦，系统遇到了一个意外错误',
+                        'Oops, the system encountered an unexpected error',
+                        'Упс, система столкнулась с неожиданной ошибкой'
+                    )}
+                </h1>
                 <p style={{ fontSize: '15px', color: 'var(--text-secondary, #6b7280)', margin: '0 0 24px', lineHeight: 1.6 }}>
-                    应用程序在运行时发生了未捕获的异常导致崩溃。<br/>
-                    您可以将下方的错误信息截图反馈给开发者（或截图给我）。
+                    {tt(
+                        '应用程序在运行时发生了未捕获的异常导致崩溃。',
+                        'The application crashed due to an uncaught exception.',
+                        'Приложение аварийно завершило работу из-за необработанного исключения.'
+                    )}
+                    <br/>
+                    {tt(
+                        '您可以将下方的错误信息截图反馈给开发者（或截图给我）。',
+                        'You can screenshot the error details below and send them to the developer.',
+                        'Вы можете отправить скриншот деталей ошибки разработчику.'
+                    )}
                 </p>
 
                 <div style={{
@@ -72,7 +93,9 @@ export default function Error({ error, reset }) {
                     textAlign: 'left', marginBottom: '32px', overflowX: 'auto',
                     border: '1px solid var(--border-light, #e5e7eb)'
                 }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted, #9ca3af)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Error Details</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted, #9ca3af)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {tt('错误详情', 'Error Details', 'Детали ошибки')}
+                    </div>
                     <code style={{ fontSize: '13px', color: '#e11d48', wordBreak: 'break-all', whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace' }}>
                         {error?.name}: {error?.message}
                     </code>
@@ -91,7 +114,7 @@ export default function Error({ error, reset }) {
                         onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
                         onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
                     >
-                        <RefreshCw size={16} /> 刷新页面
+                        <RefreshCw size={16} /> {tt('刷新页面', 'Refresh Page', 'Обновить страницу')}
                     </button>
 
                     <button
@@ -111,7 +134,7 @@ export default function Error({ error, reset }) {
                             e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.35)';
                         }}
                     >
-                        <Download size={16} /> 导出诊断日志
+                        <Download size={16} /> {tt('导出诊断日志', 'Export Diagnostic Log', 'Экспорт журнала диагностики')}
                     </button>
 
                     <button
@@ -131,12 +154,22 @@ export default function Error({ error, reset }) {
                             e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
                         }}
                     >
-                        <Trash2 size={16} /> 清空重置 (危险操作)
+                        <Trash2 size={16} /> {tt('清空重置 (危险操作)', 'Clear & Reset (Dangerous)', 'Очистить и сбросить (Опасно)')}
                     </button>
                 </div>
-                
+
                 <p style={{ fontSize: '12px', color: 'var(--text-muted, #9ca3af)', marginTop: '32px', marginBottom: 0, lineHeight: 1.5 }}>
-                    提示：如果该问题频繁出现，可能是您的浏览器插件冲突（如开启了网页自动翻译插件导致 React 渲染崩溃），<br/>或本地数据结构受损。持续白屏时请尝试清除缓存以恢复初始状态。
+                    {tt(
+                        '提示：如果该问题频繁出现，可能是您的浏览器插件冲突（如开启了网页自动翻译插件导致 React 渲染崩溃），',
+                        'Tip: If this happens frequently, it may be caused by browser extension conflicts (e.g. auto-translate extensions can crash React rendering),',
+                        'Совет: Если это происходит часто, возможно, конфликт расширений браузера (например, авто-перевод может вызвать сбой React),'
+                    )}
+                    <br/>
+                    {tt(
+                        '或本地数据结构受损。持续白屏时请尝试清除缓存以恢复初始状态。',
+                        'or local data corruption. If the screen stays blank, try clearing cache to restore initial state.',
+                        'или повреждение локальных данных. Если экран остаётся пустым, попробуйте очистить кэш.'
+                    )}
                 </p>
             </div>
         </div>

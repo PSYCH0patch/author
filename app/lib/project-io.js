@@ -114,7 +114,7 @@ export async function exportProject() {
     // 生成文件名
     const now = new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-    const fileName = `Author_存档_${dateStr}.json`;
+    const fileName = `Author_Archive_${dateStr}.json`;
 
     // 下载
     const jsonStr = JSON.stringify(data, null, 2);
@@ -129,7 +129,7 @@ export async function exportProject() {
  * @returns {Promise<{ success: boolean, message: string }>}
  */
 export async function importProject(file) {
-    if (typeof window === 'undefined') return { success: false, message: '环境不支持' };
+    if (typeof window === 'undefined') return { success: false, message: tt('环境不支持', 'Environment not supported', 'Среда не поддерживается') };
 
     try {
         const text = await file.text();
@@ -234,7 +234,7 @@ export async function importProject(file) {
  * @returns {Promise<{ success: boolean, message: string, chapters?: Array, totalWords?: number }>}
  */
 export async function importWork(file) {
-    if (typeof window === 'undefined') return { success: false, message: '环境不支持' };
+    if (typeof window === 'undefined') return { success: false, message: tt('环境不支持', 'Environment not supported', 'Среда не поддерживается') };
 
     try {
         const ext = file.name.split('.').pop()?.toLowerCase() || '';

@@ -1,3 +1,4 @@
+import { tt } from './runtime-i18n';
 import { persistGet, persistSet } from './persistence';
 import {
     CHAPTER_SYNOPSIS_SCHEMA_VERSION,
@@ -95,7 +96,7 @@ export function buildChapterMemoryGroupText(group, chapters = []) {
         });
 
     const sections = [
-        `${normalized.name || '未命名记忆组'}${chapterLabels.length ? `（${chapterLabels.join('、')}）` : ''}`,
+        `${normalized.name || tt('未命名记忆组', 'Untitled Memory Group', 'Группа памяти без названия')}${chapterLabels.length ? `（${chapterLabels.join('、')}）` : ''}`,
     ];
     const synopsisText = buildChapterSynopsisText(normalized);
     if (synopsisText) sections.push(synopsisText);
@@ -109,7 +110,7 @@ export function buildChapterMemoryGroupBriefText(group, chapters = []) {
 
 export function buildChapterSourceText(chapter, chapterNumber) {
     if (!chapter) return '';
-    const title = `第${chapterNumber}章「${chapter.title || '未命名章节'}」`;
+    const title = `第${chapterNumber}章「${chapter.title || tt('未命名章节', 'Untitled Chapter', 'Глава без названия')}」`;
     if (hasChapterSynopsis(chapter)) {
         return `${title}（章节概要）：\n${buildChapterSynopsisText(chapter)}`;
     }
@@ -123,5 +124,5 @@ export function buildChapterSourceText(chapter, chapterNumber) {
         .replace(/&gt;/g, '>')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
-    return `${title}（尚无章节概要，使用正文）：\n${rawText || '暂无正文。'}`;
+    return `${title}（尚无章节概要，使用正文）：\n${rawText || tt('暂无正文。', 'No content yet.', 'Пока нет содержимого.')}`;
 }
