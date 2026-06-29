@@ -10,7 +10,7 @@ const translations = { en, zh, ru };
 const FALLBACK_LANGUAGES = ['en', 'zh'];
 
 export function useI18n() {
-    const storedLanguage = useAppStore(state => state.language) || 'en';
+    const storedLanguage = useAppStore(state => state.language) || 'zh';
     const [hydrated, setHydrated] = useState(false);
     useEffect(() => {
         setHydrated(true);
@@ -18,7 +18,7 @@ export function useI18n() {
 
     // Keep the server render and the first client render identical; then apply
     // the user's persisted language after hydration.
-    const language = hydrated ? storedLanguage : 'en';
+    const language = hydrated ? storedLanguage : 'zh';
 
     const readPath = (lang, keys) => {
         let current = translations[lang];

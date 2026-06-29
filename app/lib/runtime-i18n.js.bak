@@ -9,10 +9,10 @@
 export function currentLang() {
     try {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('author-lang') || 'en';
+            return localStorage.getItem('author-lang') || 'zh';
         }
     } catch { /* localStorage 不可用时回退 */ }
-    return 'en';
+    return 'zh';
 }
 
 // translate：按当前界面语言三选一
