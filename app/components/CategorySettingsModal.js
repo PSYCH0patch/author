@@ -1079,7 +1079,7 @@ function ItemList({ nodes, rootFolder, category, selectedId, onSelect, onAddFold
                                 onBlur={finishRename}
                                 onKeyDown={e => { if (e.key === 'Enter') finishRename(); if (e.key === 'Escape') setRenamingId(null); }}
                                 onClick={e => e.stopPropagation()} />
-                        ) : <span style={{ ...S.treeName, opacity: node.enabled === false ? 0.45 : 1 }}>{getDisplayName ? getDisplayName(node) : node.name}</span>}
+                        ) : <span style={{ ...S.treeName, opacity: node.enabled === false ? 0.45 : 1 }}>{getDisplayName ? getDisplayName(node) : getBuiltInFolderLabel(node.name, text)}</span>}
                         <span className="cstree-count" style={{ ...S.treeCount, ...(isHovered ? { display: 'none' } : {}) }}>{totalItems}</span>
                         {renderActions(node, isHovered, () => onAddItem(node.id))}
                     </div>
