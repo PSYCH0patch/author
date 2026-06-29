@@ -871,35 +871,35 @@ function generateNodeId() {
 
 // 每个作品下自动创建的子分类模板
 const WORK_SUB_CATEGORIES = [
-    { suffix: 'characters', name: tt('人物设定', 'Characters', 'Персонажи'), category: 'character', type: 'folder', subFolders: [
+    { suffix: 'characters', name: '人物设定', category: 'character', type: 'folder', subFolders: [
         { name: '主要角色', icon: 'Star' },
         { name: '次要角色', icon: 'User' },
         { name: '阵营/势力', icon: 'Shield' },
     ]},
-    { suffix: 'locations', name: tt('空间/地点', 'Places', 'Места'), category: 'location', type: 'folder', subFolders: [
+    { suffix: 'locations', name: '空间/地点', category: 'location', type: 'folder', subFolders: [
         { name: '主要场景', icon: 'Building' },
         { name: '自然环境', icon: 'Mountain' },
     ]},
-    { suffix: 'world', name: tt('世界观/设定', 'Worldbuilding', 'Мир'), category: 'world', type: 'folder', subFolders: [
-        { name: tt('历史/纪元', 'History / Eras', 'История / Эпохи'), icon: 'BookOpen' },
-        { name: tt('社会/政治', 'Society / Politics', 'Общество / Политика'), icon: 'Crown' },
-        { name: tt('文化/习俗', 'Culture / Customs', 'Культура / Обычаи'), icon: 'Compass' },
-        { name: tt('力量体系', 'Power System', 'Система силы'), icon: 'Zap' },
+    { suffix: 'world', name: '世界观/设定', category: 'world', type: 'folder', subFolders: [
+        { name: '历史/纪元', icon: 'BookOpen' },
+        { name: '社会/政治', icon: 'Crown' },
+        { name: '文化/习俗', icon: 'Compass' },
+        { name: '力量体系', icon: 'Zap' },
     ]},
-    { suffix: 'objects', name: tt('物品/道具', 'Items', 'Предметы'), category: 'object', type: 'folder', subFolders: [
-        { name: tt('武器/装备', 'Weapons / Equipment', 'Оружие / Снаряжение'), icon: 'Sword' },
-        { name: tt('特殊道具', 'Special Items', 'Особые предметы'), icon: 'Gem' },
+    { suffix: 'objects', name: '物品/道具', category: 'object', type: 'folder', subFolders: [
+        { name: '武器/装备', icon: 'Sword' },
+        { name: '特殊道具', icon: 'Gem' },
     ]},
-    { suffix: 'plot', name: tt('大纲', 'Outline', 'План'), category: 'plot', type: 'folder', subFolders: [
+    { suffix: 'plot', name: '大纲', category: 'plot', type: 'folder', subFolders: [
         { name: '主线', icon: 'Flame' },
         { name: '支线', icon: 'Feather' },
         { name: '伏笔', icon: 'Lightbulb' },
     ]},
-    { suffix: 'rules', name: tt('写作规则', 'Writing Rules', 'Правила'), category: 'rules', type: 'folder', subFolders: [
+    { suffix: 'rules', name: '写作规则', category: 'rules', type: 'folder', subFolders: [
         { name: '文风规范', icon: 'Palette' },
         { name: '禁忌/注意', icon: 'Flag' },
     ]},
-    { suffix: 'custom', name: tt('自定义设定', 'Custom Settings', 'Пользовательские настройки'), category: 'custom', type: 'folder', subFolders: [] },
+    { suffix: 'custom', name: '自定义设定', category: 'custom', type: 'folder', subFolders: [] },
 ];
 
 // ── 内置默认名的显示层 i18n ──
@@ -926,7 +926,7 @@ const BUILTIN_FOLDER_LABELS = {
 };
 
 const BUILTIN_WORK_NAME_LABELS = {
-    tt('默认作品', 'Default Work', 'Проект по умолчанию'): ['Default Work', 'Работа по умолчанию'],
+    '默认作品': ['Default Work', 'Работа по умолчанию'],
     '新作品': ['New Work', 'Новое произведение'],
 };
 
@@ -1107,7 +1107,7 @@ function getDefaultWorkNodes(workId) {
     });
     // Ensure bookInfo special node is always created
     nodes.push({
-        id: `${wid}-bookInfo`, name: tt('作品信息', 'Book Info', 'Информация'), type: 'special', category: 'bookInfo',
+        id: `${wid}-bookInfo`, name: '作品信息', type: 'special', category: 'bookInfo',
         parentId: wid, order: -1, icon: 'BookOpen', content: { title: '', genre: '', synopsis: '', style: '', tone: '', targetAudience: '', pov: '' },
         collapsed: false, createdAt: now, updatedAt: now,
     });
@@ -1148,7 +1148,7 @@ async function migrateGlobalToPerWork() {
 
     if (!oldNodes || oldNodes.length === 0) {
         // 全新用户 → 创建默认作品
-        const { workNode, subNodes } = createWorkNode(tt('默认作品', 'Default Work', 'Проект по умолчанию'), 'work-default');
+        const { workNode, subNodes } = createWorkNode('默认作品', 'work-default');
         await saveWorksIndex([workNode]);
         await persistSet(getNodesKey('work-default'), subNodes);
         if (!getActiveWorkId()) setActiveWorkId('work-default');
@@ -1288,7 +1288,7 @@ export async function getSettingsNodes(workId) {
         if (!biNode) {
             nodes.push({
                 id: Date.now().toString(36) + Math.random().toString(36).substr(2, 6),
-                name: tt('作品信息', 'Book Info', 'Информация'), type: 'special', category: 'bookInfo',
+                name: '作品信息', type: 'special', category: 'bookInfo',
                 parentId: wid, order: -1, icon: 'BookOpen',
                 content: { title: '', genre: '', synopsis: '', style: '', tone: '', targetAudience: '', pov: '' },
                 collapsed: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
@@ -1364,7 +1364,7 @@ async function migrateToWorkStructure(nodes) {
     const legacyRoots = nodes.filter(n => n.parentId === null && LEGACY_ROOT_IDS.includes(n.id));
     if (legacyRoots.length === 0) return nodes;
 
-    const { workNode } = createWorkNode(tt('默认作品', 'Default Work', 'Проект по умолчанию'), 'work-default');
+    const { workNode } = createWorkNode('默认作品', 'work-default');
     const newNodes = [workNode];
     for (const node of nodes) {
         if (LEGACY_ROOT_IDS.includes(node.id) && node.parentId === null) {
@@ -1419,7 +1419,7 @@ async function migrateGlobalRulesToWork(nodes) {
 // 确保至少有一个作品存在（旧迁移链专用）
 async function ensureWorkExistsLegacy(nodes) {
     if (!nodes.some(n => n.type === 'work')) {
-        const { workNode, subNodes } = createWorkNode(tt('默认作品', 'Default Work', 'Проект по умолчанию'), 'work-default');
+        const { workNode, subNodes } = createWorkNode('默认作品', 'work-default');
         nodes.push(workNode, ...subNodes);
     }
     if (!getActiveWorkId()) {
@@ -1683,7 +1683,7 @@ async function migrateOldSettings() {
         if (!oldData) return null;
 
         const old = JSON.parse(oldData);
-        const { workNode, subNodes } = createWorkNode(tt('默认作品', 'Default Work', 'Проект по умолчанию'), 'work-default');
+        const { workNode, subNodes } = createWorkNode('默认作品', 'work-default');
         const nodes = [workNode, ...subNodes];
         let hasContent = false;
 
