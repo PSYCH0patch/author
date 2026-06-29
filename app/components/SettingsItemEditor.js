@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ICON_PICKER_OPTIONS } from './SettingsTree';
 import { useI18n } from '../lib/useI18n';
+import { getBuiltInFolderLabel } from '../lib/settings';
 import MiniMarkdownEditor from './MiniMarkdownEditor';
 import RadarStatsChart from './RadarStatsChart';
 
