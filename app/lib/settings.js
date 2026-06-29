@@ -926,7 +926,7 @@ const BUILTIN_FOLDER_LABELS = {
 };
 
 const BUILTIN_WORK_NAME_LABELS = {
-    tt('默认作品', 'Default Work', 'Проект по умолчанию'): ['Default Work', 'Работа по умолчанию'],
+    '默认作品': ['Default Work', 'Работа по умолчанию'],
     '新作品': ['New Work', 'Новое произведение'],
 };
 
