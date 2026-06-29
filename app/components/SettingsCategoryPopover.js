@@ -190,10 +190,11 @@ export default function SettingsCategoryPopover({ anchorRef, onClose, onOpenCate
         custom: text('自定义设定', 'Custom Settings', 'Пользовательские настройки'),
     }[category] || fallback);
     const getDisplayName = (cat) => {
+        const translated = getBuiltInFolderLabel(cat.name, text);
+        if (translated && translated !== cat.name) return translated;
         const builtInName = CAT_LABELS[cat.category];
-        return builtInName && (!cat.name || cat.name === builtInName)
-            ? getCatLabel(cat.category, cat.name)
-            : (cat.name || getCatLabel(cat.category, cat.category));
+        if (!cat.name || cat.name === builtInName) return getCatLabel(cat.category, cat.name);
+        return cat.name || getCatLabel(cat.category, cat.category);
     };
 
     const persistPinnedList = useCallback((next) => {

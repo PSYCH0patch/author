@@ -6,7 +6,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../lib/useI18n';
 import { createChapter, deleteChapter, updateChapter, saveChapters, getChapters, createVolume, insertChapterAfter, insertChapterInVolume, reorderItems } from '../lib/storage';
 import { exportProject, importProject, importWork, exportWorkAsTxt, exportWorkAsMarkdown, exportWorkAsDocx, exportWorkAsEpub, exportWorkAsPdf } from '../lib/project-io';
-import { WRITING_MODES, getAllWorks, getProjectSettings, getSettingsNodes, addWork, saveSettingsNodes, setActiveWorkId as setActiveWorkIdSetting, getActiveWorkId } from '../lib/settings';
+import { WRITING_MODES, getAllWorks, getProjectSettings, getSettingsNodes, addWork, saveSettingsNodes, setActiveWorkId as setActiveWorkIdSetting, getActiveWorkId, getBuiltInFolderLabel } from '../lib/settings';
 import { detectConflicts, mergeChapters } from '../lib/chapter-number';
 import { estimateTokens } from '../lib/context-engine';
 import { Settings, Moon, Sun, History, Save, FolderOpen, FileDown, BookOpen, HelpCircle, Github, PanelLeftClose, ListOrdered, Library, Plus, FileText, FileType, BookMarked, FileOutput, Printer, Book, X, MoreHorizontal, ChevronUp, KeyRound, SlidersHorizontal, Eye, Smartphone, Clapperboard, Cloud, CloudOff, RefreshCw, CloudUpload, CloudDownload, Sparkles, Brain, Search, CheckCircle2, GitMerge, Layers3 } from 'lucide-react';
@@ -2779,12 +2779,14 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                 custom: '自定义设定',
                             };
                             const customLabel = catCustomLabels[cat];
-                            const catLabel = customLabel && customLabel !== builtInCategoryNamesZh[cat]
+                            const customLabelTranslated = getBuiltInFolderLabel(customLabel, text);
+                            const isCustomBuiltIn = customLabel && customLabelTranslated !== customLabel;
+                            const catLabel = (customLabel && !isCustomBuiltIn && customLabel !== builtInCategoryNamesZh[cat])
                                 ? customLabel
-                                : getCategoryLabel(cat, t, text);
-                            const navLabel = customLabel && customLabel !== builtInCategoryNamesZh[cat]
+                                : (isCustomBuiltIn ? customLabelTranslated : getCategoryLabel(cat, t, text));
+                            const navLabel = (customLabel && !isCustomBuiltIn && customLabel !== builtInCategoryNamesZh[cat])
                                 ? customLabel
-                                : ({
+                                : (isCustomBuiltIn ? customLabelTranslated : ({
                                     character: text('人物', 'Characters', 'Персонажи'),
                                     location: text('地点', 'Places', 'Места'),
                                     world: text('世界观', 'World', 'Мир'),
@@ -2792,7 +2794,7 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                     plot: text('大纲', 'Outline', 'План'),
                                     rules: text('规则', 'Rules', 'Правила'),
                                     custom: text('自定义', 'Custom', 'Свои'),
-                                }[cat] || catLabel);
+                                }[cat] || catLabel));
                             const isDragging = navDragCat === cat;
                             const isDragOver = navDragOverCat === cat;
                             return (
