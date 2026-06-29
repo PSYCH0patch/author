@@ -14,8 +14,7 @@ import {
     Keyboard, Plus, Type
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import {
-    getProjectSettings,
+import { getProjectSettings,
     saveProjectSettings,
     getSettingsNodes,
     addSettingsNode,
@@ -36,8 +35,7 @@ import {
     setModelParams,
     getModelParams,
     getProviderInstances,
-    getBuiltInWorkName,
-} from '../lib/settings';
+    getBuiltInWorkName, getBuiltInFolderLabel } from '../lib/settings';
 import SettingsTree from './SettingsTree';
 import { useI18n } from '../lib/useI18n';
 import { localizeApiError } from '../lib/api-error-i18n';
@@ -1036,7 +1034,7 @@ export default function SettingsPanel() {
                                                         </span>
                                                         <div style={{ flex: 1, minWidth: 0 }}>
                                                             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                {node.name}
+                                                                {getBuiltInFolderLabel(node.name, text)}
                                                             </div>
                                                             {matchField && (
                                                                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

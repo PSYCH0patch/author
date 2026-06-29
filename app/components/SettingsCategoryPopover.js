@@ -9,7 +9,7 @@ import {
     Search,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { getSettingsNodes, getActiveWorkId, deleteSettingsNode, saveSettingsNodes, addSettingsNode, updateSettingsNode } from '../lib/settings';
+import { getSettingsNodes, getActiveWorkId, deleteSettingsNode, saveSettingsNodes, addSettingsNode, updateSettingsNode, getBuiltInFolderLabel } from '../lib/settings';
 import { useI18n } from '../lib/useI18n';
 import { getIconByName } from './SettingsCategoryPanel';
 
@@ -494,7 +494,7 @@ export default function SettingsCategoryPopover({ anchorRef, onClose, onOpenCate
                                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                                     >
                                         <span style={{ width: 5, height: 5, borderRadius: '50%', background: colors.color, flexShrink: 0 }} />
-                                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
+                                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getBuiltInFolderLabel(node.name, text)}</span>
                                         <span style={{ fontSize: 9, color: colors.color, fontWeight: 600, flexShrink: 0 }}>›</span>
                                     </button>
                                 );
