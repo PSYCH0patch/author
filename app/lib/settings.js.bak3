@@ -873,13 +873,13 @@ function generateNodeId() {
 // 每个作品下自动创建的子分类模板
 const WORK_SUB_CATEGORIES = [
     { suffix: 'characters', name: tt('人物设定', 'Characters', 'Персонажи'), category: 'character', type: 'folder', subFolders: [
-        { name: tt('主要角色', 'Main Characters', 'Главные персонажи'), icon: 'Star' },
-        { name: tt('次要角色', 'Supporting Characters', 'Второстепенные персонажи'), icon: 'User' },
-        { name: tt('阵营/势力', 'Factions', 'Фракции'), icon: 'Shield' },
+        { name: '主要角色', icon: 'Star' },
+        { name: '次要角色', icon: 'User' },
+        { name: '阵营/势力', icon: 'Shield' },
     ]},
     { suffix: 'locations', name: tt('空间/地点', 'Places', 'Места'), category: 'location', type: 'folder', subFolders: [
-        { name: tt('主要场景', 'Main Locations', 'Основные места'), icon: 'Building' },
-        { name: tt('自然环境', 'Natural Environment', 'Природная среда'), icon: 'Mountain' },
+        { name: '主要场景', icon: 'Building' },
+        { name: '自然环境', icon: 'Mountain' },
     ]},
     { suffix: 'world', name: tt('世界观/设定', 'Worldbuilding', 'Мир'), category: 'world', type: 'folder', subFolders: [
         { name: tt('历史/纪元', 'History / Eras', 'История / Эпохи'), icon: 'BookOpen' },
@@ -892,13 +892,13 @@ const WORK_SUB_CATEGORIES = [
         { name: tt('特殊道具', 'Special Items', 'Особые предметы'), icon: 'Gem' },
     ]},
     { suffix: 'plot', name: tt('大纲', 'Outline', 'План'), category: 'plot', type: 'folder', subFolders: [
-        { name: tt('主线', 'Main Plot', 'Основной сюжет'), icon: 'Flame' },
-        { name: tt('支线', 'Subplots', 'Побочные линии'), icon: 'Feather' },
-        { name: tt('伏笔', 'Foreshadowing', 'Предвестия'), icon: 'Lightbulb' },
+        { name: '主线', icon: 'Flame' },
+        { name: '支线', icon: 'Feather' },
+        { name: '伏笔', icon: 'Lightbulb' },
     ]},
     { suffix: 'rules', name: tt('写作规则', 'Writing Rules', 'Правила'), category: 'rules', type: 'folder', subFolders: [
-        { name: tt('文风规范', 'Style Guide', 'Стилистика'), icon: 'Palette' },
-        { name: tt('禁忌/注意', 'Taboos / Notes', 'Табу / Примечания'), icon: 'Flag' },
+        { name: '文风规范', icon: 'Palette' },
+        { name: '禁忌/注意', icon: 'Flag' },
     ]},
     { suffix: 'custom', name: tt('自定义设定', 'Custom Settings', 'Пользовательские настройки'), category: 'custom', type: 'folder', subFolders: [] },
 ];

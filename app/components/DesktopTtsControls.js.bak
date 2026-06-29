@@ -171,8 +171,8 @@ function providerIsComplete(provider, config) {
 
 function sanitizeTtsErrorText(value) {
     return String(value || '')
-        .replace(/\bAIza[A-Za-z0-9_-]{20,}\b/g, '[hidden]')
-        .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[hidden]')
+        .replace(/\bAIza[A-Za-z0-9_-]{20,}\b/g, '[已隐藏密钥]')
+        .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[已隐藏密钥]')
         .replace(/((?:api[ _-]?key|x-goog-api-key|access[ _-]?token|authorization|secret)[\s"'=:\-]+)([A-Za-z0-9_.-]{8,})/gi, '$1[已隐藏密钥]')
         .slice(0, 4000);
 }
@@ -184,7 +184,7 @@ function sanitizeTtsEndpoint(value) {
         url.password = '';
         url.hash = '';
         for (const key of [...url.searchParams.keys()]) {
-            if (/key|token|secret|auth|password/i.test(key)) url.searchParams.set(key, '[hidden]');
+            if (/key|token|secret|auth|password/i.test(key)) url.searchParams.set(key, '[已隐藏]');
         }
         return url.toString();
     } catch {
@@ -261,7 +261,7 @@ export default function DesktopTtsControls({ editor, chapterId }) {
         && (!providerNeedsKey(draftProvider, draftProviderConfig) || Boolean(secret.trim()));
 
     const reportTtsError = useCallback((details = {}) => {
-        const message = sanitizeTtsErrorText(details.message || details.detail || 'TTS request failed');
+        const message = sanitizeTtsErrorText(details.message || details.detail || 'TTS 请求失败');
         setErrorMessage(message);
         setErrorDetails({
             ...details,
@@ -464,7 +464,7 @@ export default function DesktopTtsControls({ editor, chapterId }) {
                 const completed = await new Promise((resolve, reject) => {
                     audioResolverRef.current = resolve;
                     audio.onended = () => resolve(true);
-                    audio.onerror = () => reject(new Error('Audio format cannot be played'));
+                    audio.onerror = () => reject(new Error('音频格式无法播放'));
                     audio.play().catch(reject);
                 });
                 audioResolverRef.current = null;
@@ -486,7 +486,7 @@ export default function DesktopTtsControls({ editor, chapterId }) {
                 message: requestDetails.stage === 'request'
                     ? text('远程音源请求失败', 'Remote voice request failed', 'Ошибка запроса к удаленному голосу')
                     : text('音频播放失败', 'Audio playback failed', 'Ошибка воспроизведения аудио'),
-                detail: requestDetails.detail || error?.message || 'TTS request failed',
+                detail: requestDetails.detail || error?.message || 'TTS 请求失败',
                 provider,
                 model: providerConfig.model || '',
                 voice: providerConfig.voice || '',

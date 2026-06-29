@@ -189,7 +189,7 @@ export default function PortableSyncSettings() {
 
     const handlePull = async () => {
         const confirmed = window.confirm(text(
-            'Pulling from WebDAV will overwrite local works/chapters/settings with the same name. A local snapshot will be created automatically. Continue?',
+            '从 WebDAV 拉取会用远端作品/章节/设定覆盖本机同名数据。继续前会自动创建本机快照。确认继续吗？',
             'Pulling from WebDAV will overwrite local works, chapters, and settings with matching remote data. A local snapshot will be created before continuing. Continue?',
             'Загрузка из WebDAV заменит локальные произведения, главы и настройки совпадающими удалёнными данными. Перед продолжением будет создан локальный снимок. Продолжить?'
         ));
@@ -230,7 +230,7 @@ export default function PortableSyncSettings() {
 
     const handleLanImport = async () => {
         const confirmed = window.confirm(text(
-            'Importing from LAN will overwrite local works/chapters/settings with the same name. A local snapshot will be created automatically. Continue?',
+            '从局域网导入会覆盖本机同名作品/章节/设定。继续前会自动创建本机快照。确认继续吗？',
             'Importing from LAN will overwrite local works, chapters, and settings with matching data. A local snapshot will be created before continuing. Continue?',
             'Импорт из LAN заменит локальные произведения, главы и настройки совпадающими данными. Перед продолжением будет создан локальный снимок. Продолжить?'
         ));
