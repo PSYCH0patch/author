@@ -239,7 +239,19 @@ test('self-hosted builds stay public-only without the opt-in and say how to enab
     const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Must not fetch'); });
     await assert.rejects(proxyFetch('http://192.168.1.10:11434/v1'), error => blocked(error)
         && error.message.includes('AUTHOR_ALLOW_PRIVATE_NETWORK'));
+    await assert.rejects(proxyFetch(endpoint, {}, 'http://192.168.1.10:7890'), error => blocked(error)
+        && error.message.includes('AUTHOR_ALLOW_PRIVATE_NETWORK'));
     assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('self-hosted operators who opt in can route requests through an HTTP proxy', async t => {
+    const { proxyFetch } = await fixture(t, { env: { NEXT_PUBLIC_DEPLOYMENT_TARGET: undefined, AUTHOR_ALLOW_PRIVATE_NETWORK: '1' } });
+    const fetch = t.mock.method(globalThis, 'fetch', async (url, options) => {
+        assert.equal(options.dispatcher?.constructor?.name, 'ProxyAgent');
+        return new Response('via proxy');
+    });
+    assert.equal(await (await proxyFetch(endpoint, {}, 'http://192.168.1.10:7890')).text(), 'via proxy');
+    assert.equal(fetch.mock.callCount(), 1);
 });
 
 test('the official web build ignores the private-network opt-in', async t => {
