@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, Copy, Pause, Play, RefreshCw, Settings2, ShieldCheck, Square, Volume2, X } from 'lucide-react';
 import { useI18n } from '../lib/useI18n';
 import { apiPath } from '../lib/api-base';
+import { copyTextToClipboard } from '../lib/clipboard';
 
 const RATE_OPTIONS = [0.75, 1, 1.25, 1.5, 2];
 const RATE_STORAGE_KEY = 'author-tts-rate';
@@ -696,11 +697,10 @@ export default function DesktopTtsControls({ editor, chapterId }) {
 
     const copyErrorReport = async () => {
         if (!errorReport) return;
-        try {
-            await navigator.clipboard.writeText(errorReport);
+        if (await copyTextToClipboard(errorReport)) {
             setErrorCopied(true);
             window.setTimeout(() => setErrorCopied(false), 1600);
-        } catch {
+        } else {
             setErrorCopied(false);
         }
     };

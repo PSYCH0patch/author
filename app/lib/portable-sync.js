@@ -807,11 +807,14 @@ export async function importLanShare(source) {
     if (raw.startsWith('{')) {
         return await applySyncSnapshot(JSON.parse(raw));
     }
-    const url = /^https?:\/\//i.test(raw)
-        ? raw
-        : apiPath(`/api/sync/lan?token=${encodeURIComponent(raw)}`);
+    const isLink = /^https?:\/\//i.test(raw);
+    const url = isLink ? raw : apiPath(`/api/sync/lan?token=${encodeURIComponent(raw)}`);
     const res = await fetch(url, { method: 'GET', cache: 'no-store' });
     const snapshot = await res.json().catch(() => null);
+    // 只填分享码时只能在本服务器上找；桌面端的分享在另一台机器上，必须用带地址的完整链接。
+    if (!isLink && res.status === 404) {
+        throw localizedError('没找到这个分享码。在电脑版创建的分享，请粘贴完整链接（以 http:// 开头）', 'Share code not found. For shares created in the desktop app, paste the full link (starting with http://).', 'Код доступа не найден. Для общего доступа из настольного приложения вставьте полную ссылку (начинается с http://).');
+    }
     if (!res.ok || snapshot?.error) throw new Error(localizeApiError(snapshot, tt) || tt('读取局域网同步数据失败', 'Failed to read LAN sync data.', 'Не удалось прочитать данные синхронизации по локальной сети.'));
     return await applySyncSnapshot(snapshot);
 }

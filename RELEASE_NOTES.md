@@ -30,6 +30,8 @@
 #### 紧急修复
 
 - 修复桌面版"局域网同步"创建的分享链接在手机上打不开的问题。分享链接的端口改为 3001 左右，请直接复制界面上显示的链接。第一次创建分享时，如果 Windows 弹出防火墙提示，请允许 Author 使用专用网络。
+- 修复桌面版多处"复制"按钮点了没反应的问题，包括局域网分享链接、章节概要"复制全部"、设定条目编号、朗读报错和 QQ 群号。
+- 桌面版创建局域网分享后不再单独显示分享码，请使用完整链接。只填分享码却找不到时，会提示改用完整链接。
 
 ---
 
@@ -63,3 +65,5 @@
 #### Hotfix
 
 - Fixed LAN share links created by the desktop app not opening on phones. Share links now use a port around 3001, so copy the link shown in the app. If Windows Firewall prompts you the first time you create a share, allow Author on private networks.
+- Fixed several Copy buttons doing nothing in the desktop app, including the LAN share link, copying all chapter synopses, settings item IDs, read-aloud error reports, and the QQ group number.
+- The desktop app no longer shows a separate share code for LAN shares; use the full link instead. Entering only a share code that can't be found now asks you to paste the full link.
