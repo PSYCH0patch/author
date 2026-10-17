@@ -2460,7 +2460,7 @@ function ApiConfigForm({ data, onChange }) {
                     {/* 供应商特定提示 */}
                     {isForeignCompatible && (
                         <div className="provider-hint">
-                            {text('仅提供协议兼容入口。请填写你有权使用的中转或自建 API 地址；应用不内置该中国境外平台的官方直连地址。', 'Only protocol-compatible access is provided. Enter an authorized relay or self-hosted API URL; no official direct URL is built in for this provider, which is based outside mainland China.', 'Доступен только совместимый протокол. Укажите разрешенный relay или собственный API URL; официальный прямой адрес этой платформы за пределами материкового Китая не встроен.')}
+                            {text('仅提供协议兼容入口。请填写你有权使用的中转或自建 API 地址；应用不内置该平台的官方直连地址。', 'Only protocol-compatible access is provided. Enter an authorized relay or self-hosted API URL; no official direct URL for this provider is built in.', 'Доступен только совместимый протокол. Укажите разрешенный relay или собственный API URL; официальный прямой адрес этой платформы не встроен.')}
                         </div>
                     )}
                     {resolvedProviderType === 'perplexity' && (

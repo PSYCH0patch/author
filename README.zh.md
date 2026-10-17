@@ -257,9 +257,10 @@ Author 支持让 AI 联网搜索实时信息。不同供应商的搜索方式不
 |--------|---------|---------|
 | Gemini（原生格式） | 内置 Google Search | 无需额外配置 |
 | OpenAI / OpenAI Responses | 内置 Web Search | 无需额外配置（需搜索模型） |
-| DeepSeek / 智谱 / 硅基 / 其他 | 外部搜索 API | **需配置搜索引擎 Key** |
+| DeepSeek | DeepSeek 搜索（外部搜索） | 自动沿用已配置的 DeepSeek Key |
+| 智谱 / 硅基 / Claude / 其他 | 外部搜索 API | **需配置搜索工具 Key**（Tavily、Exa 或 DeepSeek） |
 
-对于不支持内置搜索的供应商，你需要选择一个搜索引擎并填入 API Key：
+对于不支持内置搜索的供应商，需要选择一个搜索工具（Tavily、Exa 或 DeepSeek）并填入 API Key：
 
 ### Tavily（推荐，最简单）
 
@@ -277,6 +278,16 @@ Author 支持让 AI 联网搜索实时信息。不同供应商的搜索方式不
 
 > 免费额度：**1000 次/月**　｜　支持语义搜索，AI 场景下搜索质量更高
 
+### DeepSeek 搜索
+
+1. 已经在 Author 里配置了 DeepSeek 的话：在 Author 设置 → 联网搜索 → 选择 **DeepSeek**，Key 和地址会自动填好
+2. 还没有的话：访问 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 创建 API Key，选择 **DeepSeek** 后粘贴
+
+- **读取网页**：开启「允许 AI 读取网页全文」后，在对话里贴出链接，AI 会先读网页正文再回答（每次回答最多 3 个网页）
+- **搜索后再挑网页读全文**（默认关闭）：AI 看完搜索结果后再挑几个网页读全文，回答更详细，但要多等几秒
+
+> 收费：2026 年 11 月 1 日起按次收费，搜索和读取网页每 1000 次成功请求 0.75 美元，从 DeepSeek 余额扣；失败和没有结果的不收费。每个账号每秒最多 5 次
+
 ### 自定义搜索 API 地址（中转号池）
 
 如果你搭建了 Tavily/Exa 的中转号池代理，可以在搜索配置中填写**自定义 API 地址**：
@@ -286,7 +297,7 @@ Author 支持让 AI 联网搜索实时信息。不同供应商的搜索方式不
 3. 填入你的中转地址，如 `https://your-proxy.com`
 4. 留空则使用官方默认地址
 
-> 💡 系统会自动在你的地址后拼接 `/search` 路径，无需手动添加
+> 💡 对 Tavily / Exa，系统会自动在你的地址后拼接 `/search` 路径，无需手动添加
 
 ---
 

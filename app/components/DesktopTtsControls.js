@@ -779,7 +779,7 @@ export default function DesktopTtsControls({ editor, chapterId }) {
                                 <span className="tts-config-heading-icon"><Settings2 size={16} /></span>
                                 <div>
                                     <strong>{text('本机音源设置', 'Local voice settings', 'Локальные настройки голоса')}</strong>
-                                    <span>{text('选择协议兼容端点，不内置中国境外平台直连地址', 'Choose protocol-compatible endpoints; no direct URLs for providers based outside mainland China are built in', 'Выберите совместимый endpoint; прямые адреса платформ за пределами материкового Китая не встроены')}</span>
+                                    <span>{text('选择协议兼容端点，不内置官方直连地址', 'Choose protocol-compatible endpoints; official direct URLs are not built in', 'Выберите совместимый endpoint; официальные прямые адреса не встроены')}</span>
                                 </div>
                             </div>
                             <button type="button" onClick={() => setPopoverOpen(false)} aria-label={text('关闭', 'Close', 'Закрыть')}><X size={16} /></button>
