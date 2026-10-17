@@ -3,6 +3,7 @@ import http from 'node:http';
 import { registerHooks } from 'node:module';
 import test from 'node:test';
 import { Agent } from 'undici';
+import { listenLocal } from './helpers/local-server.mjs';
 
 const proxyUrl = new URL('../app/lib/proxy-fetch.js', import.meta.url);
 const securityUrl = new URL('../app/lib/server-security.mjs', import.meta.url);
@@ -274,16 +275,12 @@ test('actual fetch and installed Agent cannot follow a synthetic public hop into
         res.writeHead(302, { Location: req.url === '/start' ? '/ok' : `http://127.0.0.1:${target.address().port}/` });
         res.end();
     });
-    const listen = server => new Promise((resolve, reject) => {
-        server.once('error', reject);
-        server.listen(0, '127.0.0.1', resolve);
-    });
     t.after(async () => {
         await Promise.allSettled(agents.map(agent => agent.destroy()));
         first.closeAllConnections(); target.closeAllConnections();
         await Promise.allSettled([new Promise(resolve => first.close(resolve)), new Promise(resolve => target.close(resolve))]);
     });
-    await listen(first); await listen(target);
+    await listenLocal(first); await listenLocal(target);
     class FixtureAgent extends Agent {
         constructor(options) {
             const checkedLookup = options.connect.lookup;
