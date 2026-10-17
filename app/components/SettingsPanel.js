@@ -41,7 +41,7 @@ import {
 import SettingsTree from './SettingsTree';
 import { useI18n } from '../lib/useI18n';
 import { localizeApiError } from '../lib/api-error-i18n';
-import { DEEPSEEK_SEARCH_DEFAULT_BASE_URL, SEARCH_TOOL_KEY_PAGES, SEARCH_TOOL_LABELS, SEARCH_TOOLS, getSearchTool } from '../lib/search-config';
+import { DEEPSEEK_SEARCH_DEFAULT_BASE_URL, SEARCH_TOOL_KEY_PAGES, SEARCH_TOOL_LABELS, SEARCH_TOOLS, deepSeekSearchPrefill, findConfiguredDeepSeekApi, getSearchTool } from '../lib/search-config';
 import { apiPath } from '../lib/api-base';
 import { testAiConnection } from '../lib/ai-direct';
 import { getEmbeddingProviderConfig } from '../lib/embedding-provider-config';
@@ -2186,12 +2186,19 @@ function ApiConfigForm({ data, onChange }) {
     const isForeignCompatible = FOREIGN_COMPATIBLE_PROVIDER_KEYS.includes(resolvedProviderType);
     const requiresExplicitBaseUrl = isCustom || isForeignCompatible;
 
-    // 联网搜索（外部搜索）：DeepSeek 搜索在当前服务商也是 DeepSeek 时可沿用主 Key
+    // 联网搜索（外部搜索）：DeepSeek 搜索有自己的 Key 和地址字段，选中时预填已配置的 DeepSeek 服务商
     const searchTool = getSearchTool(data.searchConfig);
     const searchToolLabel = SEARCH_TOOL_LABELS[searchTool];
-    const canReuseDeepSeekKeyForSearch = searchTool === 'deepseek' && resolvedProviderType === 'deepseek';
-    const reuseDeepSeekKeyForSearch = canReuseDeepSeekKeyForSearch && data.searchConfig?.useMainKey !== false;
+    const isDeepSeekSearch = searchTool === 'deepseek';
+    const configuredDeepSeek = findConfiguredDeepSeekApi(data);
+    const searchKeyField = isDeepSeekSearch ? 'deepseekApiKey' : 'apiKey';
+    const searchBaseUrlField = isDeepSeekSearch ? 'deepseekBaseUrl' : 'baseUrl';
+    const searchApiKey = data.searchConfig?.[searchKeyField] || '';
     const updateSearchConfig = patch => onChange({ ...data, searchConfig: { ...(data.searchConfig || {}), ...patch } });
+    const selectSearchTool = tool => updateSearchConfig({
+        tool,
+        ...(tool === 'deepseek' ? deepSeekSearchPrefill(data.searchConfig, configuredDeepSeek) : {}),
+    });
 
     // 嵌入模型供应商
     const EMBED_EXCLUDED = ['deepseek', 'moonshot', 'siliconflow', 'claude', 'openrouter', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github', 'stepfun', 'volcengine', 'minimax', 'yi', 'baidu'];
@@ -2783,36 +2790,26 @@ function ApiConfigForm({ data, onChange }) {
                                     <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 3 }}>{t('apiConfig.searchTool') || '搜索工具'}</div>
                                     <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                                         {SEARCH_TOOLS.map(key => (
-                                            <button key={key} style={{ padding: '4px 10px', border: searchTool === key ? '2px solid var(--accent)' : '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', background: searchTool === key ? 'var(--accent-light)' : 'var(--bg-primary)', cursor: 'pointer', fontSize: 11, fontWeight: searchTool === key ? 600 : 400, color: searchTool === key ? 'var(--accent)' : 'var(--text-primary)', transition: 'all 0.15s' }} onClick={() => updateSearchConfig({ tool: key })}>{SEARCH_TOOL_LABELS[key]}</button>
+                                            <button key={key} style={{ padding: '4px 10px', border: searchTool === key ? '2px solid var(--accent)' : '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', background: searchTool === key ? 'var(--accent-light)' : 'var(--bg-primary)', cursor: 'pointer', fontSize: 11, fontWeight: searchTool === key ? 600 : 400, color: searchTool === key ? 'var(--accent)' : 'var(--text-primary)', transition: 'all 0.15s' }} onClick={() => selectSearchTool(key)}>{SEARCH_TOOL_LABELS[key]}</button>
                                         ))}
                                     </div>
-                                    {searchTool === 'deepseek' && (
+                                    {isDeepSeekSearch && (
                                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: -4, marginBottom: 8, lineHeight: 1.5 }}>{t('apiConfig.searchToolDeepSeekPricing')}</div>
                                     )}
-                                    {searchTool !== 'deepseek' && resolvedProviderType === 'deepseek' && !data.searchConfig?.apiKey && (
+                                    {!isDeepSeekSearch && configuredDeepSeek && !data.searchConfig?.apiKey && (
                                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: -4, marginBottom: 8, lineHeight: 1.5 }}>{t('apiConfig.searchDeepSeekSuggest')}</div>
                                     )}
-                                    {canReuseDeepSeekKeyForSearch && (
-                                        <div style={{ marginBottom: 8 }}>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)' }}>
-                                                <input type="checkbox" checked={reuseDeepSeekKeyForSearch} onChange={e => updateSearchConfig({ useMainKey: e.target.checked })} style={{ margin: 0 }} />
-                                                {t('apiConfig.searchReuseDeepSeekKey')}
-                                            </label>
-                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, paddingLeft: 22 }}>{t('apiConfig.searchReuseDeepSeekKeyDesc')}</div>
+                                    <FieldInput label={`${searchToolLabel} API Key`} value={searchApiKey} onChange={v => updateSearchConfig({ [searchKeyField]: v })} placeholder={isDeepSeekSearch && configuredDeepSeek ? t('apiConfig.searchDeepSeekKeyPlaceholder') : text(`填入 ${searchToolLabel} API Key（多个用逗号分隔可轮询）`, `Enter ${searchToolLabel} API keys. Use commas to rotate multiple keys.`, `Введите API key ${searchToolLabel}. Несколько ключей можно разделить запятыми.`)} secret />
+                                    {isDeepSeekSearch && configuredDeepSeek && searchApiKey.trim() === configuredDeepSeek.apiKey && (
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: -8, marginBottom: 6, paddingLeft: 2 }}>{t('apiConfig.searchDeepSeekKeyFromProvider')}</div>
+                                    )}
+                                    {!searchApiKey && !(isDeepSeekSearch && configuredDeepSeek) && (
+                                        <div style={{ fontSize: 11, color: 'var(--error)', marginTop: -8, marginBottom: 6, paddingLeft: 2 }}>
+                                            <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'text-bottom' }} />{text('当前供应商需要外部搜索 API Key 才能使用联网搜索（', 'This provider needs an external search API key for web search (', 'Этому провайдеру нужен внешний API-ключ поиска для веб-поиска (')}<a href={SEARCH_TOOL_KEY_PAGES[searchTool]} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{text('点此获取', 'get one here', 'получить здесь')}</a>{text('）', ')', ')')}
                                         </div>
                                     )}
-                                    {!reuseDeepSeekKeyForSearch && (
-                                        <>
-                                            <FieldInput label={`${searchToolLabel} API Key`} value={data.searchConfig?.apiKey || ''} onChange={v => updateSearchConfig({ apiKey: v })} placeholder={text(`填入 ${searchToolLabel} API Key（多个用逗号分隔可轮询）`, `Enter ${searchToolLabel} API keys. Use commas to rotate multiple keys.`, `Введите API key ${searchToolLabel}. Несколько ключей можно разделить запятыми.`)} secret />
-                                            {!data.searchConfig?.apiKey && (
-                                                <div style={{ fontSize: 11, color: 'var(--error)', marginTop: -8, marginBottom: 6, paddingLeft: 2 }}>
-                                                    <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'text-bottom' }} />{text('当前供应商需要外部搜索 API Key 才能使用联网搜索（', 'This provider needs an external search API key for web search (', 'Этому провайдеру нужен внешний API-ключ поиска для веб-поиска (')}<a href={SEARCH_TOOL_KEY_PAGES[searchTool]} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{text('点此获取', 'get one here', 'получить здесь')}</a>{text('）', ')', ')')}
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                    <FieldInput label={text(`${searchToolLabel} API 地址`, `${searchToolLabel} API URL`, `${searchToolLabel} API URL`)} value={data.searchConfig?.baseUrl || ''} onChange={v => updateSearchConfig({ baseUrl: v })} placeholder={searchTool === 'deepseek'
-                                        ? (reuseDeepSeekKeyForSearch ? t('apiConfig.searchDeepSeekBaseUrlReuse') : t('apiConfig.searchDeepSeekBaseUrlDefault', { url: DEEPSEEK_SEARCH_DEFAULT_BASE_URL }))
+                                    <FieldInput label={text(`${searchToolLabel} API 地址`, `${searchToolLabel} API URL`, `${searchToolLabel} API URL`)} value={data.searchConfig?.[searchBaseUrlField] || ''} onChange={v => updateSearchConfig({ [searchBaseUrlField]: v })} placeholder={isDeepSeekSearch
+                                        ? t('apiConfig.searchDeepSeekBaseUrlPlaceholder', { url: configuredDeepSeek?.baseUrl || DEEPSEEK_SEARCH_DEFAULT_BASE_URL })
                                         : searchTool === 'exa' ? text('https://api.exa.ai（默认，可留空）', 'https://api.exa.ai (default, can be blank)', 'https://api.exa.ai (по умолчанию, можно оставить пустым)') : text('https://api.tavily.com（默认，可留空）', 'https://api.tavily.com (default, can be blank)', 'https://api.tavily.com (по умолчанию, можно оставить пустым)')} />
                                 </div>
                             )

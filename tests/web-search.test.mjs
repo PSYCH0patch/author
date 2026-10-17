@@ -17,9 +17,10 @@ import {
 } from '../app/lib/web-search.js';
 import {
     DEEPSEEK_SEARCH_DEFAULT_BASE_URL,
+    deepSeekSearchPrefill,
+    findConfiguredDeepSeekApi,
     getSearchTool,
     resolveFunctionSearchConfig,
-    usesMainKeyForSearch,
 } from '../app/lib/search-config.js';
 import { splitApiSecrets } from '../app/lib/api-secret-storage.js';
 import { localizeApiError } from '../app/lib/api-error-i18n.js';
@@ -188,34 +189,52 @@ test('rate-limit notice is readable in all three languages', () => {
     assert.match(localizeApiError({ code: 'SEARCH_INSUFFICIENT_BALANCE', provider: 'deepseek' }, zh), /余额不足/);
 });
 
-// —— 客户端：沿用主 Key 与地址 ——
+// —— 客户端：预填已配置的 DeepSeek 服务商，用户可改 ——
 
-const deepseekMain = (searchConfig, extra = {}) => ({
+const deepseekActive = (searchConfig, extra = {}) => ({
     provider: 'deepseek', providerType: 'deepseek', apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1', searchConfig, ...extra,
 });
-
-test('DeepSeek search reuses the DeepSeek provider key and address by default', () => {
-    const config = deepseekMain({ tool: 'deepseek' });
-    assert.equal(usesMainKeyForSearch(config), true);
-    assert.deepEqual(resolveFunctionSearchConfig(config), { tool: 'deepseek', provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1' });
-    assert.equal(config.searchConfig.apiKey, undefined, 'the main key must never be copied into stored search settings');
-    // 多实例 key（deepseek_xxx）同样识别
-    assert.equal(resolveFunctionSearchConfig({ provider: 'deepseek_k3x9', apiKey: 'instance-key', baseUrl: '', searchConfig: { tool: 'deepseek' } }).baseUrl, DEEPSEEK_SEARCH_DEFAULT_BASE_URL);
+const zhipuActive = (searchConfig, providerConfigs = {}) => ({
+    provider: 'zhipu', providerType: 'zhipu', apiKey: 'zhipu-key', baseUrl: 'https://llm.example.test', searchConfig, providerConfigs,
 });
 
-test('a separate DeepSeek search key uses its own address or the default one', () => {
-    assert.deepEqual(resolveFunctionSearchConfig(deepseekMain({ tool: 'deepseek', useMainKey: false, apiKey: 'search-key' })),
-        { tool: 'deepseek', provider: 'deepseek', apiKey: 'search-key', baseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL });
-    assert.equal(resolveFunctionSearchConfig(deepseekMain({ tool: 'deepseek', useMainKey: false, apiKey: 'search-key', baseUrl: 'https://search.example.test' })).baseUrl, 'https://search.example.test');
-    assert.equal(resolveFunctionSearchConfig(deepseekMain({ tool: 'deepseek', useMainKey: false })), null);
+test('the configured DeepSeek provider is found whether or not it is the active one', () => {
+    assert.deepEqual(findConfiguredDeepSeekApi(deepseekActive({})), { apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1' });
+    const zhipu = zhipuActive({}, {
+        zhipu: { providerType: 'zhipu', apiKey: 'zhipu-key' },
+        deepseek_k3x9: { providerType: 'deepseek', apiKey: ' instance-key ', baseUrl: 'https://api.deepseek.example.test' },
+    });
+    assert.deepEqual(findConfiguredDeepSeekApi(zhipu), { apiKey: 'instance-key', baseUrl: 'https://api.deepseek.example.test' });
+    assert.equal(findConfiguredDeepSeekApi(zhipuActive({}, { deepseek: { providerType: 'deepseek', apiKey: '' } })), null);
+    // 对话单独配了别的服务商时，还能从主配置里找到
+    assert.equal(findConfiguredDeepSeekApi(zhipuActive({}), deepseekActive({})).apiKey, 'main-key');
 });
 
-test('other providers never hand their key to DeepSeek search', () => {
-    const zhipu = { provider: 'zhipu', providerType: 'zhipu', apiKey: 'zhipu-key', baseUrl: 'https://llm.example.test', searchConfig: { tool: 'deepseek' } };
-    assert.equal(usesMainKeyForSearch(zhipu), false);
+test('choosing DeepSeek search pre-fills only the empty key and URL fields', () => {
+    const configured = { apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1' };
+    assert.deepEqual(deepSeekSearchPrefill({ tool: 'tavily', apiKey: 'tavily-key' }, configured), { deepseekApiKey: 'main-key', deepseekBaseUrl: 'https://relay.example.test/v1' });
+    assert.deepEqual(deepSeekSearchPrefill({ deepseekApiKey: 'own-key', deepseekBaseUrl: 'https://search.example.test' }, configured), {}, 'user edits are kept');
+    assert.deepEqual(deepSeekSearchPrefill({}, null), { deepseekBaseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL });
+    assert.deepEqual(deepSeekSearchPrefill({}, { apiKey: 'main-key', baseUrl: '' }), { deepseekApiKey: 'main-key', deepseekBaseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL });
+});
+
+test('edited DeepSeek search key and URL win over the provider values', () => {
+    const config = deepseekActive({ tool: 'deepseek', deepseekApiKey: 'own-key', deepseekBaseUrl: 'https://search.example.test' });
+    assert.deepEqual(resolveFunctionSearchConfig(config), { tool: 'deepseek', provider: 'deepseek', apiKey: 'own-key', baseUrl: 'https://search.example.test' });
+});
+
+test('empty DeepSeek search fields fall back to the configured provider, then the default URL', () => {
+    assert.deepEqual(resolveFunctionSearchConfig(deepseekActive({ tool: 'deepseek' })),
+        { tool: 'deepseek', provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1' });
+    const zhipu = zhipuActive({ tool: 'deepseek' }, { deepseek: { providerType: 'deepseek', apiKey: 'ds-key', baseUrl: '' } });
+    assert.deepEqual(resolveFunctionSearchConfig(zhipu), { tool: 'deepseek', provider: 'deepseek', apiKey: 'ds-key', baseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL });
+    assert.equal(resolveFunctionSearchConfig(zhipuActive({ tool: 'deepseek' })), null, 'no DeepSeek key anywhere');
+});
+
+test('the Tavily / Exa key is never sent to DeepSeek search, and other providers never lend their key', () => {
+    const zhipu = zhipuActive({ tool: 'deepseek', apiKey: 'tavily-key' });
     assert.equal(resolveFunctionSearchConfig(zhipu), null);
-    assert.deepEqual(resolveFunctionSearchConfig({ ...zhipu, searchConfig: { tool: 'deepseek', apiKey: 'search-key' } }),
-        { tool: 'deepseek', provider: 'deepseek', apiKey: 'search-key', baseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL });
+    assert.equal(findConfiguredDeepSeekApi(zhipu), null);
 });
 
 test('Tavily and Exa settings pass through unchanged', () => {
@@ -223,12 +242,15 @@ test('Tavily and Exa settings pass through unchanged', () => {
     assert.equal(getSearchTool({ tool: 'unknown' }), 'tavily');
     assert.equal(resolveFunctionSearchConfig({ searchConfig: { tool: 'exa' } }), null);
     assert.deepEqual(resolveFunctionSearchConfig({ searchConfig: { tool: 'exa', apiKey: 'exa-key', baseUrl: '' } }), { tool: 'exa', provider: 'exa', apiKey: 'exa-key', baseUrl: '' });
+    // 有 DeepSeek 专用字段也不影响 Tavily / Exa
+    assert.equal(resolveFunctionSearchConfig(deepseekActive({ tool: 'tavily', deepseekApiKey: 'own-key' })), null);
 });
 
-test('stored DeepSeek search settings keep the key in the secret store only', () => {
-    const split = splitApiSecrets({ searchConfig: { tool: 'deepseek', useMainKey: false, apiKey: 'search-secret', baseUrl: 'https://search.example.test' } });
-    assert.deepEqual(split.publicValue.searchConfig, { tool: 'deepseek', useMainKey: false, apiKey: '', baseUrl: 'https://search.example.test' });
-    assert.equal(split.secrets.searchConfig.apiKey, 'search-secret');
+test('stored DeepSeek search settings keep both keys in the secret store only', () => {
+    const split = splitApiSecrets({ searchConfig: { tool: 'deepseek', apiKey: 'tavily-secret', deepseekApiKey: 'search-secret', deepseekBaseUrl: 'https://search.example.test' } });
+    assert.deepEqual(split.publicValue.searchConfig, { tool: 'deepseek', apiKey: '', deepseekApiKey: '', deepseekBaseUrl: 'https://search.example.test' });
+    assert.equal(split.secrets.searchConfig.deepseekApiKey, 'search-secret');
+    assert.equal(JSON.stringify(split.publicValue).includes('secret'), false);
 });
 
 // —— 路由：限速时整轮不失败，模型照常作答并带上提示 ——

@@ -1091,8 +1091,8 @@ export default function AiSidebar({ onInsertText }) {
                 // OpenAI 兼容端点的内置搜索
                 toolsPayload = { webSearch: true };
             } else if (searchMode === 'external' || !isOpenAI) {
-                // Function Calling 外部搜索 — 需要搜索工具的 API Key（DeepSeek 搜索可沿用 DeepSeek 服务商的 Key）
-                const sc = resolveFunctionSearchConfig(apiConfig);
+                // Function Calling 外部搜索 — 需要搜索工具的 API Key（DeepSeek 搜索留空时用已配置的 DeepSeek 服务商）
+                const sc = resolveFunctionSearchConfig(apiConfig, getProjectSettings().apiConfig);
                 if (sc) {
                     toolsPayload = {
                         functionSearch: true,

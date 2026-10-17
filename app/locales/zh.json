@@ -587,11 +587,10 @@
         "tavilyHint": "免费 1000次/月 → tavily.com",
         "exaHint": "按量计费，注册赠送额度 → exa.ai",
         "searchToolDeepSeekPricing": "按次收费（2026 年 11 月 1 日北京时间起）：每 1000 次成功搜索 0.75 美元，从 DeepSeek 账户余额扣；失败和没有结果的搜索不收费。每个账号每秒最多搜 5 次。",
-        "searchReuseDeepSeekKey": "沿用当前 DeepSeek 服务商的 API Key",
-        "searchReuseDeepSeekKeyDesc": "不用再填一遍；取消勾选可以单独填写一个 Key。",
-        "searchDeepSeekSuggest": "当前服务商是 DeepSeek：搜索工具选「DeepSeek」可以直接用现有的 Key，不用另外申请。",
-        "searchDeepSeekBaseUrlReuse": "留空则沿用 DeepSeek 服务商的 API 地址",
-        "searchDeepSeekBaseUrlDefault": "{url}（默认，可留空）"
+        "searchDeepSeekSuggest": "你已经配置了 DeepSeek：搜索工具选「DeepSeek」会自动填好 Key 和地址，不用另外申请。",
+        "searchDeepSeekKeyPlaceholder": "留空则使用已配置的 DeepSeek 服务商 Key",
+        "searchDeepSeekKeyFromProvider": "已自动填入 DeepSeek 服务商的 Key，可以改成别的。",
+        "searchDeepSeekBaseUrlPlaceholder": "留空则使用 {url}"
     },
     "preferences": {
         "intro": "在这里可以随时更改应用程序的语言和视觉主题偏好。所有的更改都会实时生效并保存在本地。",
