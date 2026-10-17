@@ -788,6 +788,16 @@ export async function createLanShare(minutes) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) throw new Error(localizeApiError(data, tt) || tt('创建局域网分享失败', 'Failed to create LAN share.', 'Не удалось создать общий доступ по локальной сети.'));
+    // 桌面端内置服务只对本机开放，手机要走主进程开的分享网关，链接以网关为准。
+    if (typeof window !== 'undefined' && window.electronAPI?.openLanShareGateway) {
+        let gateway;
+        try {
+            gateway = await window.electronAPI.openLanShareGateway({ token: data.token, expiresAt: data.expiresAt });
+        } catch {
+            throw localizedError('无法开启局域网分享端口，请检查防火墙或安全软件设置', 'Could not open the LAN share port. Check your firewall or security software.', 'Не удалось открыть порт для общего доступа по LAN. Проверьте брандмауэр или защитное ПО.');
+        }
+        return { ...data, urls: Array.isArray(gateway?.urls) ? gateway.urls : [] };
+    }
     return data;
 }
 

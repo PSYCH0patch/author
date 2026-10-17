@@ -443,6 +443,11 @@ export default function PortableSyncSettings({ mode = 'all' }) {
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                             {text('分享码', 'Share Code', 'Код доступа')}：{lanShare.token} · {text(`${lanShare.entryCount} 项`, `${lanShare.entryCount} items`, `${lanShare.entryCount} элементов`)} · {text('到期', 'Expires', 'Истекает')} {formatTime(lanShare.expiresAt)}
                         </div>
+                        {window.electronAPI?.isElectron && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                {text('手机打不开？确认两台设备连的是同一个 Wi-Fi，并在 Windows 防火墙里允许 Author 使用"专用网络"。', 'Phone can\'t open it? Make sure both devices are on the same Wi-Fi and Windows Firewall allows Author on private networks.', 'Телефон не открывает ссылку? Убедитесь, что оба устройства в одной Wi-Fi сети, а брандмауэр Windows разрешает Author в частных сетях.')}
+                            </div>
+                        )}
                     </div>
                 )}
 
