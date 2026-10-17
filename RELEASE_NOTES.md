@@ -27,6 +27,10 @@
 - 联网搜索可以另外指定一个"搜索用的模型"：当前模型不能联网时，先由它查资料，再由当前模型回答。
 - AI 对话相关的报错提示会跟随界面语言显示。
 
+#### 紧急修复
+
+- 修复桌面版"局域网同步"创建的分享链接在手机上打不开的问题。分享链接的端口改为 3001 左右，请直接复制界面上显示的链接。第一次创建分享时，如果 Windows 弹出防火墙提示，请允许 Author 使用专用网络。
+
 ---
 
 ### English
@@ -55,3 +59,7 @@
 - Added support for DeepSeek's new model name `deepseek-flash`.
 - Web search can use a separate search model: when the current model can't search the web, the search model looks things up first and the current model answers.
 - AI chat error messages now follow the interface language.
+
+#### Hotfix
+
+- Fixed LAN share links created by the desktop app not opening on phones. Share links now use a port around 3001, so copy the link shown in the app. If Windows Firewall prompts you the first time you create a share, allow Author on private networks.
