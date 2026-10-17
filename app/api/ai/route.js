@@ -97,7 +97,7 @@ async function handlePOST(request) {
         });
         const apiKey = rotateKey(credential.apiKey);
         const baseUrl = credential.baseUrl;
-        const model = apiConfig?.model || process.env.API_MODEL || 'glm-4-flash';
+        const model = apiConfig?.model || process.env.API_MODEL || 'glm-4.7-flash';
 
         if (!apiKey) {
             return new Response(

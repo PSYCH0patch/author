@@ -482,7 +482,7 @@ const DEFAULT_SETTINGS = {
         provider: 'zhipu',   // 预设供应商标识
         apiKey: '',
         baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-        model: 'glm-4-flash',
+        model: 'glm-4.7-flash',
         // 每个供应商独立保存的配置 { [key]: { apiKey, baseUrl, model, apiFormat? } }
         providerConfigs: {},
         useCustomEmbed: false, // 是否使用独立的 Embedding API

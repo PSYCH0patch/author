@@ -53,7 +53,7 @@ async function directOpenAiFetch(payload, signal) {
     const apiConfig = payload?.apiConfig || {};
     const apiKey = rotateKey(apiConfig.apiKey);
     const baseUrl = String(apiConfig.baseUrl || '').trim();
-    const model = apiConfig.model || 'glm-4-flash';
+    const model = apiConfig.model || 'glm-4.7-flash';
     const { systemPrompt, userPrompt, maxTokens, temperature, topP, reasoningEffort, tools: toolsConfig } = payload;
 
     const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;

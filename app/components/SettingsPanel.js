@@ -1468,33 +1468,33 @@ const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-4-argon', 'gemini-3.6-flash',
 
 export const PROVIDERS = [
     // === 国内供应商 ===
-    { key: 'zhipu', label: '智谱AI (GLM)', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-4-flash', 'glm-4-plus', 'glm-4-long', 'glm-4'] },
+    { key: 'zhipu', label: '智谱AI (GLM)', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-4.7-flash', 'glm-5.3', 'glm-5.3-flash', 'glm-5.2', 'glm-5-turbo', 'glm-4.7', 'glm-4-flash-250414', 'glm-4.6v'] },
     { key: 'deepseek', label: 'DeepSeek', baseUrl: 'https://api.deepseek.com', models: ['deepseek-flash', 'deepseek-v4-pro'] },
-    { key: 'bailian', label: '阿里云百炼 (千问)', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', anthropicBaseUrl: 'https://dashscope.aliyuncs.com/apps/anthropic', models: ['qwen3.5-plus', 'qwen3-max'], supportedFormats: ['openai', 'anthropic'], defaultFormat: 'openai', allowCustomModel: true },
-    { key: 'volcengine', label: '火山引擎 (豆包)', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', models: [], hint: '需在火山引擎控制台创建推理接入点，填入 endpoint_id 作为模型名' },
-    { key: 'moonshot', label: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1', models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
-    { key: 'stepfun', label: '阶跃星辰 (Step)', baseUrl: 'https://api.stepfun.com/v1', models: ['step-2-16k', 'step-1-8k', 'step-1-32k', 'step-1-128k'] },
+    { key: 'bailian', label: '阿里云百炼 (千问)', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', anthropicBaseUrl: 'https://dashscope.aliyuncs.com/apps/anthropic', models: ['qwen3.7-plus', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-max', 'qwen3.7-flash', 'qwen3.5-plus', 'qwen-long'], supportedFormats: ['openai', 'anthropic'], defaultFormat: 'openai', allowCustomModel: true },
+    { key: 'volcengine', label: '火山引擎 (豆包)', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', models: ['doubao-seed-2-1-pro-260915', 'doubao-seed-2-1-lite-260915', 'doubao-seed-2-1-turbo-260628', 'doubao-seed-evolving', 'doubao-seed-2-0-lite-260428', 'doubao-seed-2-0-mini-260428', 'deepseek-v4-1-flash-260910', 'glm-5-3-flash-260828'], hint: '可直接填模型 ID（需先在控制台开通该模型），也可填推理接入点 ID' },
+    { key: 'moonshot', label: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1', models: ['kimi-k3', 'kimi-k2.6', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed'] },
+    { key: 'stepfun', label: '阶跃星辰 (Step)', baseUrl: 'https://api.stepfun.com/v1', models: ['step-3.7-flash', 'step-5-preview', 'step-3.5-flash', 'step-3.5-flash-2603', 'step-1o-turbo-vision'] },
     { key: 'yi', label: '零一万物 (Yi)', baseUrl: 'https://api.lingyiwanwu.com/v1', models: ['yi-lightning', 'yi-large', 'yi-medium', 'yi-spark'] },
-    { key: 'baichuan', label: '百川 (Baichuan)', baseUrl: 'https://api.baichuan-ai.com/v1', models: ['Baichuan4', 'Baichuan3-Turbo', 'Baichuan3-Turbo-128k'] },
-    { key: 'hunyuan', label: '腾讯混元', baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1', models: ['hunyuan-turbo', 'hunyuan-pro', 'hunyuan-standard', 'hunyuan-lite'] },
-    { key: 'baidu', label: '百度文心', baseUrl: 'https://qianfan.baidubce.com/v2', models: ['ernie-4.0-turbo-8k', 'ernie-4.0-8k', 'ernie-3.5-8k', 'ernie-speed-8k'] },
-    { key: 'minimax', label: 'MiniMax', baseUrl: 'https://api.minimax.chat/v1', anthropicBaseUrl: 'https://api.minimaxi.com/anthropic', models: ['MiniMax-M2.5', 'MiniMax-M2.1', 'MiniMax-M2.5-highspeed'], supportedFormats: ['openai', 'anthropic'], defaultFormat: 'openai', allowCustomModel: true },
-    { key: 'siliconflow', label: 'SiliconFlow (硅基流动)', baseUrl: 'https://api.siliconflow.cn/v1', models: ['deepseek-ai/DeepSeek-V3', 'Qwen/Qwen2.5-72B-Instruct', 'THUDM/glm-4-9b-chat'] },
+    { key: 'baichuan', label: '百川 (Baichuan)', baseUrl: 'https://api.baichuan-ai.com/v1', models: ['Baichuan4-Turbo', 'Baichuan4-Air', 'Baichuan4', 'Baichuan3-Turbo', 'Baichuan3-Turbo-128k', 'Baichuan-M3-Plus'] },
+    { key: 'hunyuan', label: '腾讯混元', baseUrl: 'https://tokenhub.tencentmaas.com/v1', models: ['hy3', 'hy4-preview', 'hunyuan-role-latest', 'hy-vision-2.0-instruct', 'deepseek-v4.1-flash', 'glm-5.3', 'kimi-k3', 'minimax-m3'] },
+    { key: 'baidu', label: '百度文心', baseUrl: 'https://qianfan.baidubce.com/v2', models: ['ernie-5.1', 'ernie-5.0', 'ernie-5.0-thinking-latest', 'ernie-4.5-turbo-128k', 'ernie-4.5-turbo-32k', 'ernie-4.5-turbo-vl', 'deepseek-v4.1-flash', 'glm-5.3'] },
+    { key: 'minimax', label: 'MiniMax', baseUrl: 'https://api.minimax.chat/v1', anthropicBaseUrl: 'https://api.minimaxi.com/anthropic', models: ['MiniMax-M3'], supportedFormats: ['openai', 'anthropic'], defaultFormat: 'openai', allowCustomModel: true },
+    { key: 'siliconflow', label: 'SiliconFlow (硅基流动)', baseUrl: 'https://api.siliconflow.cn/v1', models: ['deepseek-ai/DeepSeek-V4.1-Flash', 'deepseek-ai/DeepSeek-V4-Pro', 'zai-org/GLM-5.3', 'zai-org/GLM-5.3-Flash', 'Pro/moonshotai/Kimi-K2.6', 'moonshotai/Kimi-K2.7-Code', 'Qwen/Qwen3.8-27B', 'tencent/Hy4-preview', 'deepseek-ai/DeepSeek-V3', 'Qwen/Qwen2.5-72B-Instruct'] },
     // === 国际供应商 ===
     { key: 'openai', label: 'OpenAI 兼容', baseUrl: '', models: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.2', 'o3'] },
     { key: 'claude', label: 'Claude 兼容', baseUrl: '', models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1', 'claude-fable-5', 'claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5', 'claude-opus-4-5', 'claude-sonnet-4-5'], apiFormat: 'anthropic' },
     { key: 'gemini', label: 'Gemini 兼容', baseUrl: '', models: GEMINI_MODELS },
     { key: 'gemini-native', label: 'Gemini 原生', baseUrl: '', models: GEMINI_MODELS, hint: '原生 generateContent 协议，支持 Google 搜索 grounding 与代码执行。地址通常以 /v1beta 结尾，自行填写' },
-    { key: 'groq', label: 'Groq 兼容', baseUrl: '', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'] },
-    { key: 'mistral', label: 'Mistral 兼容', baseUrl: '', models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'open-mistral-nemo'] },
-    { key: 'cohere', label: 'Cohere 兼容', baseUrl: '', models: ['command-r-plus', 'command-r', 'command-light'] },
-    { key: 'together', label: 'Together AI 兼容', baseUrl: '', models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo', 'deepseek-ai/DeepSeek-R1'] },
-    { key: 'perplexity', label: 'Perplexity 兼容', baseUrl: '', models: ['sonar-pro', 'sonar', 'sonar-reasoning-pro', 'sonar-reasoning'] },
-    { key: 'xai', label: 'xAI (Grok) 兼容', baseUrl: '', models: ['grok-3', 'grok-3-mini', 'grok-2'] },
-    { key: 'cerebras', label: 'Cerebras 兼容', baseUrl: '', models: ['llama-3.3-70b', 'llama-3.1-8b'] },
+    { key: 'groq', label: 'Groq 兼容', baseUrl: '', models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'] },
+    { key: 'mistral', label: 'Mistral 兼容', baseUrl: '', models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'mistral-large-4', 'ministral-14b-2512', 'ministral-8b-latest', 'ministral-3b-2512', 'codestral-latest'] },
+    { key: 'cohere', label: 'Cohere 兼容', baseUrl: '', models: ['command-a-plus-05-2026', 'command-a-03-2025', 'command-a-reasoning-08-2025', 'command-a-vision-07-2025', 'command-r7b-12-2024', 'command-r-plus-08-2024', 'command-r-08-2024'] },
+    { key: 'together', label: 'Together AI 兼容', baseUrl: '', models: ['deepseek-ai/DeepSeek-V4-Pro-0813', 'deepseek-ai/DeepSeek-V4.1-Flash', 'Qwen/Qwen3.7-Max', 'Qwen/Qwen3.7-Plus', 'Qwen/Qwen3.8-Flash', 'moonshotai/Kimi-K3', 'zai-org/GLM-5.3', 'openai/gpt-oss-120b'] },
+    { key: 'perplexity', label: 'Perplexity 兼容', baseUrl: '', models: ['sonar-pro', 'sonar', 'sonar-reasoning-pro'] },
+    { key: 'xai', label: 'xAI (Grok) 兼容', baseUrl: '', models: ['grok-4.7', 'grok-4.6', 'grok-4.5', 'grok-4.3', 'grok-4.20-0309-reasoning', 'grok-4.20-0309-non-reasoning', 'grok-build-0.1'] },
+    { key: 'cerebras', label: 'Cerebras 兼容', baseUrl: '', models: ['gpt-oss-120b', 'qwen-3.8-27b'] },
     { key: 'github', label: 'GitHub Models 兼容', baseUrl: '', models: ['gpt-4o', 'gpt-4o-mini', 'Phi-3.5-MoE-instruct'] },
     // === 聚合/转发 ===
-    { key: 'openrouter', label: 'OpenRouter 兼容', baseUrl: '', models: ['google/gemini-2.5-flash-preview', 'anthropic/claude-sonnet-4', 'openai/gpt-4o', 'deepseek/deepseek-chat-v3-0324', 'meta-llama/llama-4-maverick'] },
+    { key: 'openrouter', label: 'OpenRouter 兼容', baseUrl: '', models: ['google/gemini-3.8-flash', 'google/gemini-4-argon', 'anthropic/claude-opus-5.5', 'anthropic/claude-sonnet-5.5', 'anthropic/claude-haiku-5.5', 'openai/gpt-6-astra', 'openai/gpt-6.1-sol', 'deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-pro', 'qwen/qwen3.8-max-0902', 'moonshotai/kimi-k3', 'z-ai/glm-5.3'] },
     // === 自定义 ===
     { key: 'custom', label: '自定义兼容端点', baseUrl: '', models: [] },
 ];
@@ -2445,16 +2445,19 @@ function ApiConfigForm({ data, onChange }) {
                         </div>
                     )}
                     {resolvedProviderType === 'volcengine' && (
-                        <div className="provider-hint">{text('火山引擎需要先在控制台创建「推理接入点」，然后将 endpoint_id（如 ep-xxxx）填入模型字段。支持豆包系列模型。', 'For Volcengine, create an inference endpoint in the console first, then enter its endpoint_id, such as ep-xxxx, in the model field. Doubao models are supported.', 'Для Volcengine сначала создайте inference endpoint в консоли, затем укажите endpoint_id, например ep-xxxx, в поле модели. Поддерживаются модели Doubao.')}</div>
+                        <div className="provider-hint">{t('apiConfig.providerHintVolcengine')}</div>
                     )}
                     {resolvedProviderType === 'bailian' && (
                         <div className="provider-hint">{text('阿里云百炼平台 API Key 在「模型服务灵积」控制台获取，支持通义千问系列模型。', 'Get the Alibaba Cloud Bailian API key from the Model Studio console. Qwen models are supported.', 'API-ключ Alibaba Cloud Bailian получите в консоли Model Studio. Поддерживаются модели Qwen.')}</div>
                     )}
                     {resolvedProviderType === 'minimax' && (
-                        <div className="provider-hint">{text('MiniMax API Key 在开放平台获取，支持 abab 系列和 MiniMax-Text 系列模型。', 'Get the MiniMax API key from the open platform. abab and MiniMax-Text model families are supported.', 'API-ключ MiniMax получите на открытой платформе. Поддерживаются семейства abab и MiniMax-Text.')}</div>
+                        <div className="provider-hint">{t('apiConfig.providerHintMinimax')}</div>
+                    )}
+                    {resolvedProviderType === 'hunyuan' && (
+                        <div className="provider-hint">{t('apiConfig.providerHintHunyuan')}</div>
                     )}
                     {resolvedProviderType === 'deepseek' && (
-                        <div className="provider-hint">{text('DeepSeek V4 使用 https://api.deepseek.com；余额接口为 GET https://api.deepseek.com/user/balance；deepseek-chat / deepseek-reasoner 将于 2026-07-24 停用，建议切换到 deepseek-v4-pro 或 deepseek-v4-flash。', 'DeepSeek V4 uses https://api.deepseek.com; the balance endpoint is GET https://api.deepseek.com/user/balance. deepseek-chat / deepseek-reasoner will be retired on 2026-07-24; switch to deepseek-v4-pro or deepseek-v4-flash.', 'DeepSeek V4 использует https://api.deepseek.com; endpoint баланса: GET https://api.deepseek.com/user/balance. deepseek-chat / deepseek-reasoner будут отключены 2026-07-24; рекомендуется deepseek-v4-pro или deepseek-v4-flash.')}</div>
+                        <div className="provider-hint">{t('apiConfig.providerHintDeepseek')}</div>
                     )}
 
                     {/* API 格式选择（多格式供应商） */}
