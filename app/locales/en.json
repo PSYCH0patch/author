@@ -562,6 +562,8 @@
     "reasoningAuto": "Auto (no override)",
     "reasoningNone": "Disable Thinking",
     "reasoningEffortDesc": "Controls reasoning depth, only affects models that support reasoning",
+    "deepseekRetiredModel": "This DeepSeek model name is retired or only temporarily routed to a newer model. Use deepseek-flash or deepseek-v4-pro instead.",
+    "deepseekRetiredBadge": "Retired",
     "balance": "API Balance",
     "balanceQuery": "Check Balance",
     "balanceQuerying": "Checking…",

@@ -11,6 +11,7 @@ import { applyContentSafety } from '../../../lib/content-safety';
 import { proxyFetch } from '../../../lib/proxy-fetch';
 import { rotateKey } from '../../../lib/keyRotator';
 import { isOutboundRequestBlocked, isServerCredentialBlocked, resolveAiCredential, safeUpstreamDetail } from '../../../lib/server-security.mjs';
+import { buildClaudeRequestParams } from '../../../lib/ai-model-rules.js';
 
 // Anthropic 格式的搜索工具定义
 const WEB_SEARCH_TOOL = {
@@ -73,7 +74,7 @@ async function handlePOST(request) {
         });
         const apiKey = rotateKey(credential.apiKey);
         const baseUrl = credential.baseUrl;
-        const model = apiConfig?.model || process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+        const model = apiConfig?.model || process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 
         if (!apiKey) {
             return new Response(
@@ -106,23 +107,13 @@ async function handlePOST(request) {
             }
         ];
 
+        // 思考与采样参数按模型分流：新一代用 adaptive + output_config.effort，
+        // Haiku 4.5 及更早、以及无法识别的兼容模型继续用 budget_tokens
         const baseParams = {
             model,
-            max_tokens: maxTokens || 8192,
             system: systemBlocks,
-            ...(temperature != null ? { temperature } : {}),
-            ...(topP != null ? { top_p: topP } : {}),
+            ...buildClaudeRequestParams({ model, maxTokens, temperature, topP, reasoningEffort }),
         };
-
-        // 扩展思考 (extended thinking)
-        if (reasoningEffort && reasoningEffort !== 'auto' && reasoningEffort !== 'none') {
-            const budgetMap = { low: 2048, medium: 8192, high: 32768 };
-            baseParams.thinking = {
-                type: 'enabled',
-                budget_tokens: budgetMap[reasoningEffort] || 8192,
-            };
-            delete baseParams.temperature;
-        }
 
         const messages = [
             { role: 'user', content: userPrompt }

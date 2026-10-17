@@ -12,6 +12,7 @@ import { applyContentSafety } from '../../lib/content-safety';
 import { proxyFetch } from '../../lib/proxy-fetch';
 import { rotateKey } from '../../lib/keyRotator';
 import { isOutboundRequestBlocked, isServerCredentialBlocked, resolveAiCredential, safeUpstreamDetail } from '../../lib/server-security.mjs';
+import { buildOpenAiCompatibleParams, isDeepSeekRequest, isDeepSeekThinkingMode } from '../../lib/ai-model-rules.js';
 
 // Function Calling 搜索工具定义
 const WEB_SEARCH_TOOL = {
@@ -32,32 +33,6 @@ const WEB_SEARCH_TOOL = {
     },
 };
 
-const DEEPSEEK_V4_MODELS = new Set(['deepseek-v4-pro', 'deepseek-v4-flash']);
-const DEEPSEEK_LEGACY_REASONER_MODEL = 'deepseek-reasoner';
-
-function normalizeModel(model) {
-    return (model || '').trim().toLowerCase();
-}
-
-function isDeepSeekRequest(apiConfig, baseUrl, model) {
-    const provider = (apiConfig?.providerType || apiConfig?.provider || '').toLowerCase();
-    return provider === 'deepseek'
-        || (baseUrl || '').includes('api.deepseek.com')
-        || DEEPSEEK_V4_MODELS.has(normalizeModel(model));
-}
-
-function isDeepSeekV4Model(model) {
-    return DEEPSEEK_V4_MODELS.has(normalizeModel(model));
-}
-
-function isDeepSeekThinkingMode(apiConfig, baseUrl, model, reasoningEffort) {
-    if (!isDeepSeekRequest(apiConfig, baseUrl, model)) return false;
-    const normalizedModel = normalizeModel(model);
-    if (normalizedModel === DEEPSEEK_LEGACY_REASONER_MODEL) return true;
-    if (!isDeepSeekV4Model(model)) return false;
-    return reasoningEffort !== 'none';
-}
-
 function getCachedPromptTokens(usage) {
     if (!usage) return 0;
     return usage.prompt_cache_hit_tokens
@@ -70,20 +45,6 @@ function getCacheMissPromptTokens(usage, cachedTokens = getCachedPromptTokens(us
     if (usage.prompt_cache_miss_tokens != null) return usage.prompt_cache_miss_tokens;
     const promptTokens = usage.prompt_tokens || 0;
     return Math.max(0, promptTokens - cachedTokens);
-}
-
-function buildBaseParams({ model, maxTokens, temperature, topP, reasoningEffort }) {
-    const isV4 = isDeepSeekV4Model(model);
-    const thinkingType = isV4 ? (reasoningEffort === 'none' ? 'disabled' : 'enabled') : null;
-    const thinkingEnabled = thinkingType === 'enabled';
-
-    return {
-        ...(temperature != null && !thinkingEnabled ? { temperature } : {}),
-        ...(topP != null && !thinkingEnabled ? { top_p: topP } : {}),
-        ...(maxTokens ? { max_tokens: maxTokens } : {}),
-        ...(thinkingType ? { thinking: { type: thinkingType } } : {}),
-        ...(reasoningEffort && reasoningEffort !== 'auto' && !(isV4 && reasoningEffort === 'none') ? { reasoning_effort: reasoningEffort } : {}),
-    };
 }
 
 // ===== 内联搜索执行（避免 Edge Runtime 自引用 fetch 问题）=====
@@ -158,7 +119,7 @@ async function handlePOST(request) {
             'Authorization': `Bearer ${apiKey}`,
         };
 
-        const baseParams = buildBaseParams({ model, maxTokens, temperature, topP, reasoningEffort });
+        const baseParams = buildOpenAiCompatibleParams({ model, maxTokens, temperature, topP, reasoningEffort });
         const keepReasoningContentForTools = isDeepSeekThinkingMode(apiConfig, baseUrl, model, reasoningEffort);
         const shouldIncludeStreamUsage = toolsConfig?.webSearch || isDeepSeekRequest(apiConfig, baseUrl, model);
 

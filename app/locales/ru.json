@@ -562,6 +562,8 @@
         "reasoningAuto": "Авто (без вмешательства)",
         "reasoningNone": "Отключить мышление",
         "reasoningEffortDesc": "Управляет глубиной рассуждения, работает только с моделями, поддерживающими рассуждение",
+        "deepseekRetiredModel": "Это имя модели DeepSeek выведено из эксплуатации или временно перенаправляется на новую модель. Используйте deepseek-flash или deepseek-v4-pro.",
+        "deepseekRetiredBadge": "Устарела",
         "balance": "Баланс API",
         "balanceQuery": "Проверить баланс",
         "balanceQuerying": "Проверка…",

@@ -562,6 +562,8 @@
         "reasoningAuto": "自动（不干预）",
         "reasoningNone": "关闭思考",
         "reasoningEffortDesc": "控制模型的推理深度，仅对支持推理的模型生效",
+        "deepseekRetiredModel": "这个 DeepSeek 模型名已停用或只是临时转发到新模型，建议改用 deepseek-flash 或 deepseek-v4-pro。",
+        "deepseekRetiredBadge": "已退役",
         "balance": "API 余额",
         "balanceQuery": "查询余额",
         "balanceQuerying": "查询中…",
