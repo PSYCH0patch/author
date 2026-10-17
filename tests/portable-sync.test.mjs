@@ -4,7 +4,7 @@ import test from 'node:test';
 
 // WebDAV（坚果云等）自动同步在手机上的两个问题：
 //   1. 待推队列只在内存里，手机浏览器切到后台被冻结或回收，5 分钟定时器等不到，内容推不出去；
-//   2. 官网前面的反向代理嫌请求体太大时直接回 HTML 413，用户只看到一句 "WebDAV put failed"。
+//   2. 部署在反向代理后面时，代理嫌请求体太大会直接回 HTML 413，用户只看到一句 "WebDAV put failed"。
 
 const moduleUrl = new URL('../app/lib/portable-sync.js', import.meta.url);
 const PENDING_KEY = 'author-sync-webdav-pending-v1';
