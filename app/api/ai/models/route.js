@@ -75,7 +75,6 @@ const KNOWN_EMBED_MODELS = {
     doubao: [{ id: 'doubao-embedding', displayName: 'Doubao Embedding' }],
     baichuan: [{ id: 'Baichuan-Text-Embedding', displayName: 'Baichuan Embedding' }],
     hunyuan: [{ id: 'hunyuan-embedding', displayName: 'Hunyuan Embedding' }],
-    yi: [{ id: 'yi-embedding', displayName: 'Yi Embedding' }],
     openai: [{ id: 'text-embedding-3-small', displayName: 'Text Embedding 3 Small' }, { id: 'text-embedding-3-large', displayName: 'Text Embedding 3 Large' }, { id: 'text-embedding-ada-002', displayName: 'Ada 002' }],
     siliconflow: [{ id: 'BAAI/bge-m3', displayName: 'BGE-M3' }, { id: 'BAAI/bge-large-zh-v1.5', displayName: 'BGE Large ZH v1.5' }],
 };

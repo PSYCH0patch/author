@@ -568,6 +568,7 @@
         "providerHintMinimax": "MiniMax API Key 在开放平台获取，支持 MiniMax-M 系列模型。M2.5 / M2.7 系列将于 2026-11-18 下线，建议使用 MiniMax-M3。",
         "providerHintDeepseek": "DeepSeek 使用 https://api.deepseek.com；余额接口为 GET https://api.deepseek.com/user/balance。推荐模型为 deepseek-flash 和 deepseek-v4-pro；deepseek-chat / deepseek-reasoner 已于 2026-07-24 停用。",
         "providerHintHunyuan": "腾讯混元已迁移到 TokenHub：接口地址为 https://tokenhub.tencentmaas.com/v1，需要在 TokenHub 控制台重新创建 API Key。旧地址和旧 Key 已停用。",
+        "providerHintPerplexity": "Perplexity 已于 2026-09-27 结束 Sonar 在 chat/completions 接口上的支持。目前请求会被自动转换，暂时还能用，但可能随时停止。",
         "balance": "API 余额",
         "balanceQuery": "查询余额",
         "balanceQuerying": "查询中…",

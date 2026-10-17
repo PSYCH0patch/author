@@ -1460,7 +1460,7 @@ function mergeFetchedAndSavedModels(fetchedModels, savedModels) {
     return merged;
 }
 
-const FOREIGN_COMPATIBLE_PROVIDER_KEYS = ['openai', 'claude', 'gemini', 'gemini-native', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github', 'openrouter'];
+const FOREIGN_COMPATIBLE_PROVIDER_KEYS = ['openai', 'claude', 'gemini', 'gemini-native', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'openrouter'];
 
 // Gemini 兼容与原生共用。第一个是切换服务商时的默认模型：4 Argon 不在免费层，默认用 3.8 Flash。
 // 先列稳定版，再列预览版；2.5 系列仅对以前用过的账号开放
@@ -1474,7 +1474,6 @@ export const PROVIDERS = [
     { key: 'volcengine', label: '火山引擎 (豆包)', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', models: ['doubao-seed-2-1-pro-260915', 'doubao-seed-2-1-lite-260915', 'doubao-seed-2-1-turbo-260628', 'doubao-seed-evolving', 'doubao-seed-2-0-lite-260428', 'doubao-seed-2-0-mini-260428', 'deepseek-v4-1-flash-260910', 'glm-5-3-flash-260828'], hint: '可直接填模型 ID（需先在控制台开通该模型），也可填推理接入点 ID' },
     { key: 'moonshot', label: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1', models: ['kimi-k3', 'kimi-k2.6', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed'] },
     { key: 'stepfun', label: '阶跃星辰 (Step)', baseUrl: 'https://api.stepfun.com/v1', models: ['step-3.7-flash', 'step-5-preview', 'step-3.5-flash', 'step-3.5-flash-2603', 'step-1o-turbo-vision'] },
-    { key: 'yi', label: '零一万物 (Yi)', baseUrl: 'https://api.lingyiwanwu.com/v1', models: ['yi-lightning', 'yi-large', 'yi-medium', 'yi-spark'] },
     { key: 'baichuan', label: '百川 (Baichuan)', baseUrl: 'https://api.baichuan-ai.com/v1', models: ['Baichuan4-Turbo', 'Baichuan4-Air', 'Baichuan4', 'Baichuan3-Turbo', 'Baichuan3-Turbo-128k', 'Baichuan-M3-Plus'] },
     { key: 'hunyuan', label: '腾讯混元', baseUrl: 'https://tokenhub.tencentmaas.com/v1', models: ['hy3', 'hy4-preview', 'hunyuan-role-latest', 'hy-vision-2.0-instruct', 'deepseek-v4.1-flash', 'glm-5.3', 'kimi-k3', 'minimax-m3'] },
     { key: 'baidu', label: '百度文心', baseUrl: 'https://qianfan.baidubce.com/v2', models: ['ernie-5.1', 'ernie-5.0', 'ernie-5.0-thinking-latest', 'ernie-4.5-turbo-128k', 'ernie-4.5-turbo-32k', 'ernie-4.5-turbo-vl', 'deepseek-v4.1-flash', 'glm-5.3'] },
@@ -1492,7 +1491,6 @@ export const PROVIDERS = [
     { key: 'perplexity', label: 'Perplexity 兼容', baseUrl: '', models: ['sonar-pro', 'sonar', 'sonar-reasoning-pro'] },
     { key: 'xai', label: 'xAI (Grok) 兼容', baseUrl: '', models: ['grok-4.7', 'grok-4.6', 'grok-4.5', 'grok-4.3', 'grok-4.20-0309-reasoning', 'grok-4.20-0309-non-reasoning', 'grok-build-0.1'] },
     { key: 'cerebras', label: 'Cerebras 兼容', baseUrl: '', models: ['gpt-oss-120b', 'qwen-3.8-27b'] },
-    { key: 'github', label: 'GitHub Models 兼容', baseUrl: '', models: ['gpt-4o', 'gpt-4o-mini', 'Phi-3.5-MoE-instruct'] },
     // === 聚合/转发 ===
     { key: 'openrouter', label: 'OpenRouter 兼容', baseUrl: '', models: ['google/gemini-3.8-flash', 'google/gemini-4-argon', 'anthropic/claude-opus-5.5', 'anthropic/claude-sonnet-5.5', 'anthropic/claude-haiku-5.5', 'openai/gpt-6-astra', 'openai/gpt-6.1-sol', 'deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-pro', 'qwen/qwen3.8-max-0902', 'moonshotai/kimi-k3', 'z-ai/glm-5.3'] },
     // === 自定义 ===
@@ -1506,7 +1504,6 @@ const PROVIDER_LABELS = {
     volcengine: ['火山引擎 (豆包)', 'Volcengine (Doubao)', 'Volcengine (Doubao)'],
     moonshot: ['Moonshot (Kimi)', 'Moonshot (Kimi)', 'Moonshot (Kimi)'],
     stepfun: ['阶跃星辰 (Step)', 'StepFun (Step)', 'StepFun (Step)'],
-    yi: ['零一万物 (Yi)', '01.AI (Yi)', '01.AI (Yi)'],
     baichuan: ['百川 (Baichuan)', 'Baichuan', 'Baichuan'],
     hunyuan: ['腾讯混元', 'Tencent Hunyuan', 'Tencent Hunyuan'],
     baidu: ['百度文心', 'Baidu Wenxin', 'Baidu Wenxin'],
@@ -1523,7 +1520,6 @@ const PROVIDER_LABELS = {
     perplexity: ['Perplexity 兼容', 'Perplexity-compatible', 'Perplexity-compatible'],
     xai: ['xAI (Grok) 兼容', 'xAI (Grok)-compatible', 'xAI (Grok)-compatible'],
     cerebras: ['Cerebras 兼容', 'Cerebras-compatible', 'Cerebras-compatible'],
-    github: ['GitHub Models 兼容', 'GitHub Models-compatible', 'GitHub Models-compatible'],
     openrouter: ['OpenRouter 兼容', 'OpenRouter-compatible', 'OpenRouter-compatible'],
     custom: ['自定义兼容端点', 'Custom compatible endpoint', 'Custom compatible endpoint'],
 };
@@ -2183,13 +2179,13 @@ function ApiConfigForm({ data, onChange }) {
     // 对于实例 key（如 deepseek_abc），通过 providerType 查找预设定义
     const instanceCfg = data.providerConfigs?.[data.provider];
     const resolvedProviderType = instanceCfg?.providerType || data.provider;
-    const currentProvider = PROVIDERS.find(p => p.key === data.provider) || PROVIDERS.find(p => p.key === resolvedProviderType) || PROVIDERS[7];
+    const currentProvider = PROVIDERS.find(p => p.key === data.provider) || PROVIDERS.find(p => p.key === resolvedProviderType) || PROVIDERS.find(p => p.key === 'custom');
     const isCustom = resolvedProviderType === 'custom';
     const isForeignCompatible = FOREIGN_COMPATIBLE_PROVIDER_KEYS.includes(resolvedProviderType);
     const requiresExplicitBaseUrl = isCustom || isForeignCompatible;
 
     // 嵌入模型供应商
-    const EMBED_EXCLUDED = ['deepseek', 'moonshot', 'siliconflow', 'claude', 'openrouter', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github', 'stepfun', 'volcengine', 'minimax', 'yi', 'baidu'];
+    const EMBED_EXCLUDED = ['deepseek', 'moonshot', 'siliconflow', 'claude', 'openrouter', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'stepfun', 'volcengine', 'minimax', 'baidu'];
     const currentEmbedProvider = PROVIDERS.find(p => p.key === data.embedProvider) || PROVIDERS.find(p => p.key === 'zhipu') || PROVIDERS[0];
     const isEmbedCustom = data.embedProvider === 'custom';
     const handleEmbedProviderChange = (providerKey) => {
@@ -2314,8 +2310,8 @@ function ApiConfigForm({ data, onChange }) {
                         data-1p-ignore="true"
                     />
                     {[
-                        { group: 'cn', keys: ['zhipu', 'deepseek', 'bailian', 'volcengine', 'moonshot', 'stepfun', 'yi', 'baichuan', 'hunyuan', 'baidu', 'minimax', 'siliconflow'] },
-                        { group: 'global', keys: ['openai', 'claude', 'gemini', 'gemini-native', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras', 'github'] },
+                        { group: 'cn', keys: ['zhipu', 'deepseek', 'bailian', 'volcengine', 'moonshot', 'stepfun', 'baichuan', 'hunyuan', 'baidu', 'minimax', 'siliconflow'] },
+                        { group: 'global', keys: ['openai', 'claude', 'gemini', 'gemini-native', 'groq', 'mistral', 'cohere', 'together', 'perplexity', 'xai', 'cerebras'] },
                         { group: 'aggregate', keys: ['openrouter'] },
                         { group: 'custom', keys: ['custom'] },
                     ].map(section => {
@@ -2443,6 +2439,9 @@ function ApiConfigForm({ data, onChange }) {
                         <div className="provider-hint">
                             {text('仅提供协议兼容入口。请填写你有权使用的中转或自建 API 地址；应用不内置该中国境外平台的官方直连地址。', 'Only protocol-compatible access is provided. Enter an authorized relay or self-hosted API URL; no official direct URL is built in for this provider, which is based outside mainland China.', 'Доступен только совместимый протокол. Укажите разрешенный relay или собственный API URL; официальный прямой адрес этой платформы за пределами материкового Китая не встроен.')}
                         </div>
+                    )}
+                    {resolvedProviderType === 'perplexity' && (
+                        <div className="provider-hint">{t('apiConfig.providerHintPerplexity')}</div>
                     )}
                     {resolvedProviderType === 'volcengine' && (
                         <div className="provider-hint">{t('apiConfig.providerHintVolcengine')}</div>
