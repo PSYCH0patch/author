@@ -608,7 +608,16 @@
     "searchBuiltinCustomHint": "Uses the provider's native search (proxy must support forwarding tools parameter)",
     "searchEngine": "Search Engine",
     "tavilyHint": "Free 1000/month → tavily.com",
-    "exaHint": "Pay-per-use, free credits on signup → exa.ai"
+    "exaHint": "Pay-per-use, free credits on signup → exa.ai",
+    "searchToolDeepSeekPricing": "Search and page reading are billed per request from Nov 1, 2026 (UTC+8): $0.75 per 1,000 successful requests, charged to your DeepSeek balance. Failed and empty requests are free. Up to 5 requests per second per account (search and page reading counted separately).",
+    "searchDeepSeekSuggest": "You have DeepSeek configured: choose \"DeepSeek\" as the search tool and its key and URL are filled in for you, with no extra sign-up.",
+    "searchDeepSeekKeyPlaceholder": "Leave blank to use your configured DeepSeek provider key",
+    "searchDeepSeekKeyFromProvider": "Filled in from your DeepSeek provider. You can change it.",
+    "searchDeepSeekBaseUrlPlaceholder": "Leave blank to use {url}",
+    "searchDeepSeekReadWebpage": "Let AI read full web pages",
+    "searchDeepSeekReadWebpageDesc": "When you give a web link in the chat, the AI has DeepSeek read the page text before answering. Up to 3 pages per answer; each page read counts as one request.",
+    "searchDeepSeekReadAfterSearch": "Read pages picked from search results",
+    "searchDeepSeekReadAfterSearchDesc": "After reading the search results, the AI picks pages to read in full before answering. More detailed, but a few seconds slower and the answer appears all at once. Risk: page text could steer the AI to other URLs, so only URLs from the search results can be read."
   },
   "preferences": {
     "intro": "You can change your language and visual theme preferences here at any time. All changes take effect immediately and are saved locally.",
