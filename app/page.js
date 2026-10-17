@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useAppStore } from './store/useAppStore';
-import { useI18n } from './lib/useI18n';
+import { useI18n, translate, LANGUAGES } from './lib/useI18n';
+import { getDefaultFirstChapterRetitle } from './lib/first-chapter-title';
 import { Menu, Sparkles, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import Tooltip from './components/ui/Tooltip';
 import BeianNotice from './components/BeianNotice';
@@ -77,6 +78,11 @@ const CONTEXT_STRATEGY_VERSION = 'multi-chapter-v1';
 
 function getWorkScopedId(workId) {
   return workId || getActiveWorkId() || 'work-default';
+}
+
+// 还没选语言时按中文起名，与界面在语言确定前的显示一致
+function getFirstChapterTitle(language) {
+  return translate(language || 'zh', 'page.firstChapterTitle');
 }
 
 function isWritableChapter(chapter) {
@@ -411,7 +417,8 @@ export default function Home() {
 
     chaptersWorkIdRef.current = targetWorkId;
     if (saved.length === 0) {
-      const first = await createChapter(t('page.firstChapterTitle'), targetWorkId);
+      // 直接读当前语言：启动时调用的这份回调还是语言生效前创建的，里面的 t 固定是中文
+      const first = await createChapter(getFirstChapterTitle(useAppStore.getState().language), targetWorkId);
       if (chapterLoadSeqRef.current !== loadSeq) return;
       setChapters([first]);
       setActiveChapterId(first.id);
@@ -422,7 +429,30 @@ export default function Home() {
       setActiveChapterId(targetChapter?.id || null);
       if (targetChapter?.id) rememberChapterId(targetWorkId, targetChapter.id);
     }
-  }, [t, setChapters, setActiveChapterId]);
+  }, [setChapters, setActiveChapterId]);
+
+  // 全新打开时，第一章可能在欢迎窗口选语言之前就建好了，只能先叫“第一章”。
+  // 语言选定后，如果它还没被改过名、也没写内容，就换成所选语言的默认名。
+  // 只在首次选语言时做这一次，之后在设置里切换语言不会改章节名。
+  const storeLanguage = useAppStore(state => state.language);
+  const firstChapterTitlePendingRef = useRef(!storeLanguage);
+  useEffect(() => {
+    if (!firstChapterTitlePendingRef.current || !storeLanguage) return;
+    const workId = chaptersWorkIdRef.current;
+    // 章节还没加载完（或第一章正在创建）时先等，加载完会因 chapters 变化再进来
+    if (!workId || chapters.length === 0) return;
+    firstChapterTitlePendingRef.current = false;
+    const retitle = getDefaultFirstChapterRetitle(chapters, {
+      defaultTitles: LANGUAGES.map(getFirstChapterTitle),
+      nextTitle: getFirstChapterTitle(storeLanguage),
+    });
+    if (!retitle) return;
+    updateChapter(retitle.id, { title: retitle.title }, workId)
+      .then(updated => {
+        if (updated) updateChapterStore(retitle.id, { title: retitle.title });
+      })
+      .catch(error => console.warn('[默认章名] 改名失败', error));
+  }, [storeLanguage, chapters, updateChapterStore]);
 
   // 初始化数据
   useEffect(() => {
