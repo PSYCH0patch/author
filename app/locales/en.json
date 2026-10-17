@@ -592,7 +592,9 @@
     "searchDeepSeekKeyFromProvider": "Filled in from your DeepSeek provider. You can change it.",
     "searchDeepSeekBaseUrlPlaceholder": "Leave blank to use {url}",
     "searchDeepSeekReadWebpage": "Let AI read full web pages",
-    "searchDeepSeekReadWebpageDesc": "When you give a web link in the chat, the AI has DeepSeek read the page text before answering. Up to 3 pages per answer; each page read counts as one request."
+    "searchDeepSeekReadWebpageDesc": "When you give a web link in the chat, the AI has DeepSeek read the page text before answering. Up to 3 pages per answer; each page read counts as one request.",
+    "searchDeepSeekReadAfterSearch": "Read pages picked from search results",
+    "searchDeepSeekReadAfterSearchDesc": "After reading the search results, the AI picks pages to read in full before answering. More detailed, but a few seconds slower and the answer appears all at once. Risk: page text could steer the AI to other URLs, so only URLs from the search results can be read."
   },
   "preferences": {
     "intro": "You can change your language and visual theme preferences here at any time. All changes take effect immediately and are saved locally.",

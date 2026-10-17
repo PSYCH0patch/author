@@ -4,7 +4,7 @@
 // 单独加密保存，不同步、不随项目导出。Tavily / Exa 共用 apiKey、baseUrl；DeepSeek 搜索
 // 用自己的 deepseekApiKey、deepseekBaseUrl，选中时预填已配置的 DeepSeek 服务商 Key 和地址，
 // 用户可以改；留空时发请求前再取一次已配置的 DeepSeek 服务商。DeepSeek 搜索还可以让 AI
-// 读取网页全文（deepseekReadWebpage，默认开启）。
+// 读取网页全文（deepseekReadWebpage，默认开启），以及看完搜索结果再挑网页读（deepseekReadAfterSearch，默认关闭）。
 
 import { isDeepSeekPresetConfig } from './ai-provider-compat.js';
 
@@ -75,10 +75,16 @@ export function resolveFunctionSearchConfig(apiConfig, ...fallbackConfigs) {
     const apiKey = trimmed(searchConfig.deepseekApiKey) || configured?.apiKey || '';
     if (!apiKey) return null;
     const baseUrl = trimmed(searchConfig.deepseekBaseUrl) || configured?.baseUrl || DEEPSEEK_SEARCH_DEFAULT_BASE_URL;
-    return { tool, provider: tool, apiKey, baseUrl, readWebpage: isDeepSeekReadWebpageEnabled(searchConfig) };
+    const readWebpage = isDeepSeekReadWebpageEnabled(searchConfig);
+    return { tool, provider: tool, apiKey, baseUrl, readWebpage, readAfterSearch: readWebpage && isDeepSeekReadAfterSearchEnabled(searchConfig) };
 }
 
 /** DeepSeek 搜索时是否同时让 AI 读取网页全文（默认开启，设置面板可关）。 */
 export function isDeepSeekReadWebpageEnabled(searchConfig) {
     return searchConfig?.deepseekReadWebpage !== false;
+}
+
+/** 是否让 AI 看完搜索结果后再挑网页读全文（默认关闭：回答更慢，且只能读搜索结果里的网址）。 */
+export function isDeepSeekReadAfterSearchEnabled(searchConfig) {
+    return searchConfig?.deepseekReadAfterSearch === true;
 }

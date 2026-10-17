@@ -37,12 +37,13 @@ export const SEARCH_ERROR_MESSAGES = {
     FETCH_BLOCKED: '这个网站不允许读取',
     FETCH_UNREADABLE: '没能读到这个网页的正文',
     FETCH_LIMIT_REACHED: '本轮读取的网页数已达上限',
+    FETCH_NOT_ALLOWED: '只能读取搜索结果里出现过的网址',
 };
 
 // Key、地址、余额问题对搜索和读取网页都一样，出现后本轮所有 DeepSeek 工具都不再请求。
 const ACCOUNT_BLOCKING_CODES = new Set(['SEARCH_NO_BASE_URL', 'SEARCH_NO_API_KEY', 'SEARCH_INVALID_KEY', 'SEARCH_INSUFFICIENT_BALANCE']);
 // 只告诉模型、不在界面上提示的错误码
-const SILENT_CODES = new Set(['FETCH_LIMIT_REACHED']);
+const SILENT_CODES = new Set(['FETCH_LIMIT_REACHED', 'FETCH_NOT_ALLOWED']);
 
 const TOOL_FAILURE_TEXT = {
     SEARCH_RATE_LIMITED: '搜索服务暂时限速，这次没有拿到结果。请根据已有知识回答，并告诉用户联网搜索被限速、稍后可以再试。',
@@ -52,6 +53,7 @@ const TOOL_FAILURE_TEXT = {
     FETCH_BLOCKED: '这个网站不允许读取，没有拿到网页内容。请告诉用户无法读取该网页，并根据已有信息回答。',
     FETCH_UNREADABLE: '没能读到这个网页的正文（可能打不开，或不是文字页面）。请告诉用户，并根据已有信息回答。',
     FETCH_LIMIT_REACHED: `这一轮已经读取了 ${MAX_WEBPAGES_PER_ROUND} 个网页，不再读取更多。请根据已读到的内容回答。`,
+    FETCH_NOT_ALLOWED: '看完搜索结果后只能读取搜索结果里出现过的网址，这个网址不在其中，没有读取。请根据已有信息回答。',
 };
 const DEFAULT_TOOL_FAILURE_TEXT = {
     search: '搜索失败，请直接回答用户的问题。',
@@ -93,9 +95,9 @@ export function searchErrorHttpStatus(error) {
 }
 
 /**
- * 一轮工具调用（模型一次返回的全部 tool_calls）共用的状态：
- * Key / 余额问题后本轮所有工具不再请求；某个工具被限速后本轮该工具不再请求；
- * 读取网页每轮最多 MAX_WEBPAGES_PER_ROUND 个；界面提示按错误码去重。
+ * 一次回答里所有工具调用共用的状态（包括"搜完再读"那一轮）：
+ * Key / 余额问题后所有工具不再请求；某个工具被限速后该工具不再请求；
+ * 读取网页最多 MAX_WEBPAGES_PER_ROUND 个；界面提示按错误码去重。
  */
 export function createToolRoundGuard({ maxWebpages = MAX_WEBPAGES_PER_ROUND } = {}) {
     let accountError = null;
@@ -110,6 +112,11 @@ export function createToolRoundGuard({ maxWebpages = MAX_WEBPAGES_PER_ROUND } = 
             if (tool === 'fetch' && ++webpageCount > maxWebpages) {
                 throw new SearchProviderError('FETCH_LIMIT_REACHED', { provider: 'deepseek', tool: 'fetch' });
             }
+        },
+        /** 还能不能再用这个工具（不占用读取网页的名额）。 */
+        canUse(tool) {
+            if (accountError || rateLimited.has(tool)) return false;
+            return tool !== 'fetch' || webpageCount < maxWebpages;
         },
         /** 是否是本轮已经记录过的错误（调用方据此避免重复写日志）。 */
         isKnown(error) {
@@ -173,6 +180,22 @@ export function normalizeFetchTarget(rawUrl) {
         throw new SearchProviderError('FETCH_INVALID_URL', { provider: 'deepseek', tool: 'fetch' });
     }
     return parsed.href;
+}
+
+/** 网址的比较用形式；不能读取的地址返回 null。 */
+export function readableUrlKey(rawUrl) {
+    try { return normalizeFetchTarget(rawUrl); } catch { return null; }
+}
+
+/**
+ * "搜完再读"时只允许读取搜索结果里出现过的网址。网页和摘要来自第三方，里面的文字可能诱导模型
+ * 去访问别的地址（例如把对话内容拼进网址），限定在搜索结果的原始网址里就带不出去。
+ */
+export function assertReadableAfterSearch(rawUrl, allowedUrls) {
+    const key = readableUrlKey(rawUrl);
+    if (!key) throw new SearchProviderError('FETCH_INVALID_URL', { provider: 'deepseek', tool: 'fetch' });
+    if (!allowedUrls?.has(key)) throw new SearchProviderError('FETCH_NOT_ALLOWED', { provider: 'deepseek', tool: 'fetch' });
+    return key;
 }
 
 /**

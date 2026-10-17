@@ -41,7 +41,7 @@ import {
 import SettingsTree from './SettingsTree';
 import { useI18n } from '../lib/useI18n';
 import { localizeApiError } from '../lib/api-error-i18n';
-import { DEEPSEEK_SEARCH_DEFAULT_BASE_URL, SEARCH_TOOL_KEY_PAGES, SEARCH_TOOL_LABELS, SEARCH_TOOLS, deepSeekSearchPrefill, findConfiguredDeepSeekApi, getSearchTool, isDeepSeekReadWebpageEnabled } from '../lib/search-config';
+import { DEEPSEEK_SEARCH_DEFAULT_BASE_URL, SEARCH_TOOL_KEY_PAGES, SEARCH_TOOL_LABELS, SEARCH_TOOLS, deepSeekSearchPrefill, findConfiguredDeepSeekApi, getSearchTool, isDeepSeekReadAfterSearchEnabled, isDeepSeekReadWebpageEnabled } from '../lib/search-config';
 import { apiPath } from '../lib/api-base';
 import { testAiConnection } from '../lib/ai-direct';
 import { getEmbeddingProviderConfig } from '../lib/embedding-provider-config';
@@ -2818,6 +2818,15 @@ function ApiConfigForm({ data, onChange }) {
                                                 {t('apiConfig.searchDeepSeekReadWebpage')}
                                             </label>
                                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, paddingLeft: 22, lineHeight: 1.5 }}>{t('apiConfig.searchDeepSeekReadWebpageDesc')}</div>
+                                            {isDeepSeekReadWebpageEnabled(data.searchConfig) && (
+                                                <div style={{ paddingLeft: 22, marginTop: 6 }}>
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)' }}>
+                                                        <input type="checkbox" checked={isDeepSeekReadAfterSearchEnabled(data.searchConfig)} onChange={e => updateSearchConfig({ deepseekReadAfterSearch: e.target.checked })} style={{ margin: 0 }} />
+                                                        {t('apiConfig.searchDeepSeekReadAfterSearch')}
+                                                    </label>
+                                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, paddingLeft: 22, lineHeight: 1.5 }}>{t('apiConfig.searchDeepSeekReadAfterSearchDesc')}</div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -592,7 +592,9 @@
         "searchDeepSeekKeyFromProvider": "已自动填入 DeepSeek 服务商的 Key，可以改成别的。",
         "searchDeepSeekBaseUrlPlaceholder": "留空则使用 {url}",
         "searchDeepSeekReadWebpage": "允许 AI 读取网页全文",
-        "searchDeepSeekReadWebpageDesc": "你在对话里给出网页链接时，AI 会让 DeepSeek 读取网页正文再回答。每次回答最多读 3 个网页，每读一个网页算一次请求。"
+        "searchDeepSeekReadWebpageDesc": "你在对话里给出网页链接时，AI 会让 DeepSeek 读取网页正文再回答。每次回答最多读 3 个网页，每读一个网页算一次请求。",
+        "searchDeepSeekReadAfterSearch": "搜索后再挑网页读全文",
+        "searchDeepSeekReadAfterSearchDesc": "AI 看完搜索结果，再挑网页读全文后回答，更详细但会慢几秒，且回答整段一起出现。风险：网页内容可能诱导 AI 访问别的网址，所以只允许读搜索结果里的网址。"
     },
     "preferences": {
         "intro": "在这里可以随时更改应用程序的语言和视觉主题偏好。所有的更改都会实时生效并保存在本地。",

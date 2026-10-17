@@ -3,6 +3,7 @@ import test from 'node:test';
 import { registerHooks } from 'node:module';
 
 import {
+    assertReadableAfterSearch,
     buildDeepSeekFetchUrl,
     buildDeepSeekSearchBody,
     buildDeepSeekSearchUrl,
@@ -13,6 +14,7 @@ import {
     mapDeepSeekSearchResults,
     MAX_WEBPAGES_PER_ROUND,
     normalizeFetchTarget,
+    readableUrlKey,
     retryDelayFromHeader,
     runDeepSeekFetch,
     runDeepSeekSearch,
@@ -26,6 +28,7 @@ import {
     deepSeekSearchPrefill,
     findConfiguredDeepSeekApi,
     getSearchTool,
+    isDeepSeekReadAfterSearchEnabled,
     isDeepSeekReadWebpageEnabled,
     resolveFunctionSearchConfig,
 } from '../app/lib/search-config.js';
@@ -234,14 +237,14 @@ test('choosing DeepSeek search pre-fills only the empty key and URL fields', () 
 
 test('edited DeepSeek search key and URL win over the provider values', () => {
     const config = deepseekActive({ tool: 'deepseek', deepseekApiKey: 'own-key', deepseekBaseUrl: 'https://search.example.test' });
-    assert.deepEqual(resolveFunctionSearchConfig(config), { tool: 'deepseek', provider: 'deepseek', apiKey: 'own-key', baseUrl: 'https://search.example.test', readWebpage: true });
+    assert.deepEqual(resolveFunctionSearchConfig(config), { tool: 'deepseek', provider: 'deepseek', apiKey: 'own-key', baseUrl: 'https://search.example.test', readWebpage: true, readAfterSearch: false });
 });
 
 test('empty DeepSeek search fields fall back to the configured provider, then the default URL', () => {
     assert.deepEqual(resolveFunctionSearchConfig(deepseekActive({ tool: 'deepseek' })),
-        { tool: 'deepseek', provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1', readWebpage: true });
+        { tool: 'deepseek', provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1', readWebpage: true, readAfterSearch: false });
     const zhipu = zhipuActive({ tool: 'deepseek' }, { deepseek: { providerType: 'deepseek', apiKey: 'ds-key', baseUrl: '' } });
-    assert.deepEqual(resolveFunctionSearchConfig(zhipu), { tool: 'deepseek', provider: 'deepseek', apiKey: 'ds-key', baseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL, readWebpage: true });
+    assert.deepEqual(resolveFunctionSearchConfig(zhipu), { tool: 'deepseek', provider: 'deepseek', apiKey: 'ds-key', baseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL, readWebpage: true, readAfterSearch: false });
     assert.equal(resolveFunctionSearchConfig(zhipuActive({ tool: 'deepseek' })), null, 'no DeepSeek key anywhere');
 });
 
@@ -564,6 +567,102 @@ for (const route of ['openai', 'claude']) {
         assert.equal(outputs.length, 4);
         assert.match(outputs[3], /不再读取/);
         assert.equal(events.some(e => e.searchNotice), false);
+    });
+}
+
+// —— 搜完再读 ——
+
+test('after search, only URLs that appeared in the search results can be read', () => {
+    const allowed = new Set([readableUrlKey('https://example.test/a'), readableUrlKey('not a url')].filter(Boolean));
+    assert.equal(allowed.size, 1);
+    assert.equal(assertReadableAfterSearch(' https://example.test/a ', allowed), 'https://example.test/a');
+    const blocked = (() => { try { assertReadableAfterSearch('https://evil.example.test/?q=chapter-text', allowed); } catch (error) { return error; } })();
+    assert.equal(blocked.code, 'FETCH_NOT_ALLOWED');
+    assert.equal(searchNoticeFromError(blocked), null, 'told to the model only');
+    assert.match(searchFailureToolText(blocked, 'fetch'), /搜索结果里出现过的网址/);
+    assert.throws(() => assertReadableAfterSearch('javascript:alert(1)', allowed), { code: 'FETCH_INVALID_URL' });
+});
+
+test('round guard reports whether a tool can still be used without spending page reads', () => {
+    const guard = createToolRoundGuard({ maxWebpages: 1 });
+    assert.equal(guard.canUse('fetch'), true);
+    assert.equal(guard.canUse('fetch'), true, 'checking does not use up the page budget');
+    guard.assertAvailable('fetch');
+    assert.equal(guard.canUse('fetch'), false);
+    assert.equal(guard.canUse('search'), true);
+    guard.record('search', new SearchProviderError('SEARCH_INVALID_KEY', { provider: 'deepseek', status: 401 }));
+    assert.equal(guard.canUse('search'), false);
+});
+
+test('reading pages after search is a separate switch, off by default', () => {
+    assert.equal(isDeepSeekReadAfterSearchEnabled({}), false);
+    assert.equal(isDeepSeekReadAfterSearchEnabled({ deepseekReadAfterSearch: true }), true);
+    assert.equal(resolveFunctionSearchConfig(deepseekActive({ tool: 'deepseek', deepseekReadAfterSearch: true })).readAfterSearch, true);
+    assert.equal(resolveFunctionSearchConfig(deepseekActive({ tool: 'deepseek', deepseekReadWebpage: false, deepseekReadAfterSearch: true })).readAfterSearch, false, 'needs page reading on');
+});
+
+const pickReply = (route, urls) => route === 'claude'
+    ? { content: urls.map((u, i) => ({ type: 'tool_use', id: `pick-${i}`, name: 'read_webpage', input: { url: u } })), stop_reason: 'tool_use' }
+    : { choices: [{ message: { content: null, tool_calls: urls.map((u, i) => ({ id: `pick-${i}`, type: 'function', function: { name: 'read_webpage', arguments: JSON.stringify({ url: u }) } })) }, finish_reason: 'tool_calls' }] };
+const directReply = route => route === 'claude'
+    ? { content: [{ type: 'text', text: 'picked answer' }], stop_reason: 'end_turn' }
+    : { choices: [{ message: { content: 'picked answer' }, finish_reason: 'stop' }] };
+const afterSearchRequest = (route, readAfterSearch) => new Request('https://author.example.test/api/ai', { method: 'POST', body: JSON.stringify({
+    systemPrompt: 'synthetic', userPrompt: 'What happened?',
+    apiConfig: { apiKey: 'main-key', baseUrl: 'https://llm.example.test/v1', model: route === 'claude' ? 'synthetic-claude' : 'synthetic' },
+    tools: { functionSearch: true, searchConfig: { provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://search.example.test', readWebpage: true, readAfterSearch } },
+}) });
+
+async function runAfterSearch(route, { readAfterSearch = true, pick }) {
+    const requests = [];
+    let modelCalls = 0;
+    const api = await routeFixture(route, async (url, options) => {
+        const body = JSON.parse(options.body);
+        requests.push({ url, body });
+        if (url.endsWith('/v1/tools/search')) return Response.json(sample);
+        if (url.endsWith('/v1/tools/fetch')) return Response.json({ title: `Page ${body.url}`, content: `Full text of ${body.url}` });
+        modelCalls++;
+        if (modelCalls === 1) return Response.json(toolCallsReply(route, [{ name: 'web_search', input: { query: 'what happened' } }]));
+        if (modelCalls === 2 && !body.stream) return Response.json(pick);
+        return answerStream(route);
+    });
+    const events = [];
+    for await (const event of readAiEvents(await api.POST(afterSearchRequest(route, readAfterSearch)))) events.push(event);
+    const modelRequests = requests.filter(r => !r.url.includes('/v1/tools/'));
+    return { requests, modelRequests, events };
+}
+
+for (const route of ['openai', 'claude']) {
+    test(`${route}: after searching, the AI can read pages from the results but not other URLs`, async () => {
+        const { requests, modelRequests, events } = await runAfterSearch(route, {
+            pick: pickReply(route, ['https://example.test/a', 'https://evil.example.test/?q=chapter-text']),
+        });
+        assert.equal(modelRequests.length, 3, 'round 1, picking pages, streamed answer');
+        assert.deepEqual(offeredTools(route, modelRequests[1].body), ['read_webpage']);
+        assert.equal(modelRequests[2].body.stream, true);
+        assert.deepEqual(requests.filter(r => r.url.endsWith('/v1/tools/fetch')).map(r => r.body.url), ['https://example.test/a']);
+        // OpenAI 格式里搜索结果也是 tool 消息，最后两条才是挑选网页这一轮的结果
+        const outputs = toolOutputs(route, modelRequests[2].body).slice(-2);
+        assert.match(outputs[0], /Full text of https:\/\/example\.test\/a/);
+        assert.match(outputs[1], /搜索结果里出现过的网址/);
+        assert.equal(events.some(e => e.searchNotice), false);
+        assert.equal(events.filter(e => e.text).map(e => e.text).join(''), 'answer');
+        assert.equal(events.find(e => e.grounding).grounding.sources.filter(s => s.uri === 'https://example.test/a').length, 1, 'no duplicate source chip');
+    });
+
+    test(`${route}: if the AI answers right after seeing the results, that answer is used`, async () => {
+        const { requests, modelRequests, events } = await runAfterSearch(route, { pick: directReply(route) });
+        assert.equal(modelRequests.length, 2, 'no extra streamed round');
+        assert.equal(requests.some(r => r.url.endsWith('/v1/tools/fetch')), false);
+        assert.equal(events.filter(e => e.text).map(e => e.text).join(''), 'picked answer');
+        assert.ok(events.find(e => e.grounding).grounding.sources.length > 0, 'search sources still shown');
+    });
+
+    test(`${route}: with the switch off there is no page-picking round`, async () => {
+        const { modelRequests, events } = await runAfterSearch(route, { readAfterSearch: false, pick: pickReply(route, ['https://example.test/a']) });
+        assert.equal(modelRequests.length, 2);
+        assert.equal(modelRequests[1].body.stream, true);
+        assert.equal(events.filter(e => e.text).map(e => e.text).join(''), 'answer');
     });
 }
 

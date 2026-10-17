@@ -12,7 +12,7 @@ import { applyContentSafety } from '../../lib/content-safety';
 import { proxyFetch } from '../../lib/proxy-fetch';
 import { rotateKey } from '../../lib/keyRotator';
 import { isOutboundRequestBlocked, isServerCredentialBlocked, resolveAiCredential, safeUpstreamDetail } from '../../lib/server-security.mjs';
-import { createToolRoundGuard, formatWebpageForModel, runDeepSeekFetch, runDeepSeekSearch, searchFailureToolText } from '../../lib/web-search.js';
+import { assertReadableAfterSearch, createToolRoundGuard, formatWebpageForModel, readableUrlKey, runDeepSeekFetch, runDeepSeekSearch, searchFailureToolText } from '../../lib/web-search.js';
 
 // Function Calling 搜索工具定义
 const WEB_SEARCH_TOOL = {
@@ -32,6 +32,9 @@ const WEB_SEARCH_TOOL = {
         },
     },
 };
+
+// 模型调用了没有提供的工具时的回复；每个 tool_call 都要有对应的 tool 消息，否则下一轮会被服务商拒绝
+const UNAVAILABLE_TOOL_TEXT = '这个工具不可用，请直接回答用户的问题。';
 
 // 读取网页工具：只在搜索工具是 DeepSeek 且用户开启时提供
 const READ_WEBPAGE_TOOL = {
@@ -154,6 +157,10 @@ async function executeReadWebpage(pageUrl, searchConfig, proxyUrl, signal) {
     });
 }
 
+function parseToolArguments(toolCall) {
+    try { return JSON.parse(toolCall.function?.arguments || '{}') || {}; } catch { return {}; }
+}
+
 async function handlePOST(request) {
     const lifecycle = createGenerationLifecycle(request.signal);
     const { signal } = lifecycle;
@@ -210,6 +217,8 @@ async function handlePOST(request) {
                 toolsConfig.searchConfig.provider = toolsConfig.searchConfig.tool || 'tavily';
             }
             const canReadWebpage = toolsConfig.searchConfig.provider === 'deepseek' && toolsConfig.searchConfig.readWebpage === true;
+            // 搜完再读：看完搜索结果后再挑网页读全文（独立开关）
+            const canReadAfterSearch = canReadWebpage && toolsConfig.searchConfig.readAfterSearch === true;
             // 第 1 轮：非流式请求，附带搜索工具定义
             const round1Res = await proxyFetch(url, {
                 method: 'POST', signal,
@@ -234,24 +243,44 @@ async function handlePOST(request) {
             if (assistantMsg?.tool_calls?.length > 0) {
                 // 清理 assistant message：确保 content 为字符串（而非 null）
                 // DeepSeek 推理模型在 tool_calls 时 content 为 null，传回会导致 Round 2 不产出内容
-                const cleanedAssistantMsg = {
-                    ...assistantMsg,
-                    content: assistantMsg.content || '',
+                const cleanToolCallMessage = message => {
+                    const cleaned = { ...message, content: message.content || '' };
+                    if (!keepReasoningContentForTools) {
+                        // 非 DeepSeek 思考模式维持旧兼容逻辑，避免中转不接受 reasoning_content。
+                        delete cleaned.reasoning_content;
+                    }
+                    return cleaned;
                 };
-                if (!keepReasoningContentForTools) {
-                    // 非 DeepSeek 思考模式维持旧兼容逻辑，避免中转不接受 reasoning_content。
-                    delete cleanedAssistantMsg.reasoning_content;
-                }
+                const toolMessage = (toolCall, content) => ({ role: 'tool', tool_call_id: toolCall.id, content });
                 // 收集搜索结果和来源
-                const extendedMessages = [...messages, cleanedAssistantMsg];
+                const extendedMessages = [...messages, cleanToolCallMessage(assistantMsg)];
                 const allSources = [];
-                // 限速、余额不足、Key 无效后本轮剩下的请求直接用同一个错误回复模型；读取网页每轮有上限
+                // 一次回答里所有工具调用共用：限速、余额不足、Key 无效后直接用同一个错误回复模型；读取网页有上限
                 const toolGuard = createToolRoundGuard();
+                // 搜索结果里出现过的网址，"搜完再读"时只允许读这些
+                const searchResultUrls = new Set();
+
+                // 读取一个网页，返回交给模型的文字；传入 allowedUrls 时只允许读其中的网址
+                const readWebpageForModel = async (pageUrl, allowedUrls) => {
+                    try {
+                        if (allowedUrls) assertReadableAfterSearch(pageUrl, allowedUrls);
+                        toolGuard.assertAvailable('fetch');
+                        const page = await executeReadWebpage(pageUrl, toolsConfig.searchConfig, proxyUrl, signal);
+                        if (!allSources.some(source => source.uri === page.url)) {
+                            allSources.push({ title: page.title || page.url, uri: page.url });
+                        }
+                        return formatWebpageForModel(page);
+                    } catch (fetchErr) {
+                        signal.throwIfAborted();
+                        if (!toolGuard.isKnown(fetchErr)) console.error('读取网页失败:', fetchErr?.code || fetchErr?.name || 'UNKNOWN');
+                        toolGuard.record('fetch', fetchErr);
+                        return searchFailureToolText(fetchErr, 'fetch');
+                    }
+                };
 
                 for (const toolCall of assistantMsg.tool_calls) {
                     const toolName = toolCall.function?.name;
-                    let args = {};
-                    try { args = JSON.parse(toolCall.function?.arguments || '{}') || {}; } catch { /* 参数无法解析时按空参数处理 */ }
+                    const args = parseToolArguments(toolCall);
 
                     if (toolName === 'web_search') {
                         const searchQuery = args.query || userPrompt;
@@ -265,54 +294,56 @@ async function handlePOST(request) {
                                 ? results.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join('\n\n')
                                 : '没有找到相关搜索结果。';
 
-                            extendedMessages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: resultText,
-                            });
+                            extendedMessages.push(toolMessage(toolCall, resultText));
 
                             for (const r of results) {
                                 allSources.push({ title: r.title, uri: r.url });
+                                const key = readableUrlKey(r.url);
+                                if (key) searchResultUrls.add(key);
                             }
                         } catch (searchErr) {
                             signal.throwIfAborted();
                             if (!toolGuard.isKnown(searchErr)) console.error('搜索执行失败:', searchErr?.code || searchErr?.name || 'UNKNOWN');
                             toolGuard.record('search', searchErr);
-                            extendedMessages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: searchFailureToolText(searchErr, 'search'),
-                            });
+                            extendedMessages.push(toolMessage(toolCall, searchFailureToolText(searchErr, 'search')));
                         }
                     } else if (toolName === 'read_webpage' && canReadWebpage) {
-                        try {
-                            toolGuard.assertAvailable('fetch');
-                            const page = await executeReadWebpage(args.url, toolsConfig.searchConfig, proxyUrl, signal);
-                            extendedMessages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: formatWebpageForModel(page),
-                            });
-                            if (!allSources.some(source => source.uri === page.url)) {
-                                allSources.push({ title: page.title || page.url, uri: page.url });
-                            }
-                        } catch (fetchErr) {
-                            signal.throwIfAborted();
-                            if (!toolGuard.isKnown(fetchErr)) console.error('读取网页失败:', fetchErr?.code || fetchErr?.name || 'UNKNOWN');
-                            toolGuard.record('fetch', fetchErr);
-                            extendedMessages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: searchFailureToolText(fetchErr, 'fetch'),
-                            });
-                        }
+                        extendedMessages.push(toolMessage(toolCall, await readWebpageForModel(args.url)));
                     } else {
-                        // 每个 tool_call 都要有对应的 tool 消息，否则第 2 轮会被服务商拒绝
-                        extendedMessages.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            content: '这个工具不可用，请直接回答用户的问题。',
-                        });
+                        extendedMessages.push(toolMessage(toolCall, UNAVAILABLE_TOOL_TEXT));
+                    }
+                }
+
+                // 搜完再读：模型看完搜索结果后可以再挑网页读全文，只能读搜索结果里出现过的网址
+                if (canReadAfterSearch && searchResultUrls.size > 0 && toolGuard.canUse('fetch')) {
+                    const pickRes = await proxyFetch(url, {
+                        method: 'POST', signal,
+                        headers,
+                        body: JSON.stringify({
+                            model, messages: extendedMessages, ...baseParams,
+                            tools: [READ_WEBPAGE_TOOL],
+                        }),
+                    }, proxyUrl);
+
+                    if (!pickRes.ok) {
+                        const errorText = await pickRes.text();
+                        console.error('Function Calling 挑选网页轮错误:', pickRes.status);
+                        return errorResponse(pickRes.status, errorText);
+                    }
+
+                    const pickData = await pickRes.json();
+                    signal.throwIfAborted();
+                    const pickMsg = pickData.choices?.[0]?.message;
+                    if (!(pickMsg?.tool_calls?.length > 0)) {
+                        // 模型看完搜索结果直接作答，这一轮的结果就是最终回答
+                        return nonStreamAnswerResponse(pickData, toolEvents(allSources, toolGuard.notices));
+                    }
+
+                    extendedMessages.push(cleanToolCallMessage(pickMsg));
+                    for (const toolCall of pickMsg.tool_calls) {
+                        extendedMessages.push(toolMessage(toolCall, toolCall.function?.name === 'read_webpage'
+                            ? await readWebpageForModel(parseToolArguments(toolCall).url, searchResultUrls)
+                            : UNAVAILABLE_TOOL_TEXT));
                     }
                 }
 
@@ -338,38 +369,7 @@ async function handlePOST(request) {
             }
 
             // 模型没调用工具 → 直接把非流式结果包装成 SSE 返回
-            const encoder = new TextEncoder();
-            const content = assistantMsg?.content || '';
-            const thinking = assistantMsg?.reasoning_content || '';
-            const stream = new ReadableStream({
-                start(controller) {
-                    if (thinking) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ thinking })}\n\n`));
-                    }
-                    if (content) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: content })}\n\n`));
-                    }
-                    if (round1Data.usage) {
-                        const cachedTokens = getCachedPromptTokens(round1Data.usage);
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                            usage: {
-                                promptTokens: round1Data.usage.prompt_tokens || 0,
-                                completionTokens: round1Data.usage.completion_tokens || 0,
-                                totalTokens: round1Data.usage.total_tokens || 0,
-                                cachedTokens,
-                                cacheMissTokens: getCacheMissPromptTokens(round1Data.usage, cachedTokens),
-                            }
-                        })}\n\n`));
-                    }
-                    if (!assistantMsg || (round1Data.choices?.[0]?.finish_reason && round1Data.choices[0].finish_reason !== 'stop')) {
-                        controller.enqueue(encoder.encode('data: {"status":"incomplete","code":"AI_STREAM_INCOMPLETE","error":"生成未完成。"}\n\n'));
-                    } else {
-                        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-                    }
-                    controller.close();
-                },
-            });
-            return new Response(stream, { headers: sseHeaders() });
+            return nonStreamAnswerResponse(round1Data);
         }
 
         // ===== 普通模式（含 OpenAI 内置搜索） =====
@@ -467,12 +467,52 @@ function errorResponse(status, errorText = '') {
     );
 }
 
-/** 流式转发上游 SSE 并可选前置 grounding 来源 */
-function streamWithGrounding(response, sources, lifecycle, searchNotices = []) {
-    return streamAiResponse(response, lifecycle, createOpenAiMapper(), [
+/** 搜索来源和搜索失败提示，放在回答前面发给前端 */
+function toolEvents(sources, searchNotices = []) {
+    return [
         ...(sources?.length ? [{ grounding: { searchQueries: [], sources, supports: [] } }] : []),
         ...searchNotices.map(searchNotice => ({ searchNotice })),
-    ]);
+    ];
+}
+
+/** 流式转发上游 SSE 并可选前置 grounding 来源 */
+function streamWithGrounding(response, sources, lifecycle, searchNotices = []) {
+    return streamAiResponse(response, lifecycle, createOpenAiMapper(), toolEvents(sources, searchNotices));
+}
+
+/** 把非流式结果包装成 SSE 返回（模型没调用工具，或看完搜索结果后直接作答） */
+function nonStreamAnswerResponse(data, initialEvents = []) {
+    const encoder = new TextEncoder();
+    const send = (controller, event) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+    const message = data?.choices?.[0]?.message;
+    const content = message?.content || '';
+    const thinking = message?.reasoning_content || '';
+    const stream = new ReadableStream({
+        start(controller) {
+            for (const event of initialEvents) send(controller, event);
+            if (thinking) send(controller, { thinking });
+            if (content) send(controller, { text: content });
+            if (data?.usage) {
+                const cachedTokens = getCachedPromptTokens(data.usage);
+                send(controller, {
+                    usage: {
+                        promptTokens: data.usage.prompt_tokens || 0,
+                        completionTokens: data.usage.completion_tokens || 0,
+                        totalTokens: data.usage.total_tokens || 0,
+                        cachedTokens,
+                        cacheMissTokens: getCacheMissPromptTokens(data.usage, cachedTokens),
+                    },
+                });
+            }
+            if (!message || (data.choices?.[0]?.finish_reason && data.choices[0].finish_reason !== 'stop')) {
+                controller.enqueue(encoder.encode('data: {"status":"incomplete","code":"AI_STREAM_INCOMPLETE","error":"生成未完成。"}\n\n'));
+            } else {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            }
+            controller.close();
+        },
+    });
+    return new Response(stream, { headers: sseHeaders() });
 }
 
 export const POST = withApiResources('/api/ai', handlePOST);
