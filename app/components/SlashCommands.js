@@ -132,7 +132,9 @@ function SlashCommandMenu({ editor, range, onClose }) {
     return createPortal(
         <>
             <div style={{ position: 'fixed', inset: 0, zIndex: 9990 }} onClick={onClose} />
-            <div ref={menuRef} className="slash-menu" style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9991 }}>
+            {/* 阻止 mousedown 抢走编辑器焦点：失焦期间 ProseMirror 不同步 DOM 选区，
+                列表命令执行后浏览器选区会停在被复用为末尾空段的旧段落里，紧接着输入的文字会落到那里 */}
+            <div ref={menuRef} className="slash-menu" style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9991 }} onMouseDown={e => e.preventDefault()}>
                 {filtered.map((cmd, i) => {
                     const Icon = cmd.icon;
                     return (
