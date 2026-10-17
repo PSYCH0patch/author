@@ -224,9 +224,15 @@ function buildMemoryMergePrompts({ name, groups, chapters }) {
     return buildMergedSynopsisPrompts({ name, content });
 }
 
-function formatMemoryTokens(value) {
+function formatMemoryTokens(value, text = (zh) => zh) {
     const tokens = Number(value) || 0;
-    if (tokens >= 10000) return `${(tokens / 10000).toFixed(1)}万 tokens`;
+    if (tokens >= 10000) {
+        return text(
+            `${(tokens / 10000).toFixed(1)}万 tokens`,
+            `${(tokens / 1000).toFixed(1)}k tokens`,
+            `${(tokens / 1000).toFixed(1)} тыс. tokens`,
+        );
+    }
     return `${tokens.toLocaleString()} tokens`;
 }
 
@@ -1330,7 +1336,7 @@ function ChapterSynopsisOverviewModal({
                                         <span className="synopsis-row-badge saved">{text('概要组', 'Synopsis Group', 'Группа синопсиса')}</span>
                                         {groupSelectedIds.size > 0 && <span className="synopsis-row-badge locked">{text(`已选 ${groupSelectedIds.size}`, `${groupSelectedIds.size} selected`, `Выбрано: ${groupSelectedIds.size}`)}</span>}
                                         <h3>{groupDraft.name || selectedGroup.name || text('未命名概要组', 'Untitled Synopsis Group', 'Безымянная группа синопсиса')}</h3>
-                                        <p>{text(`${groupDraft.chapterIds?.length || 0} 章`, `${groupDraft.chapterIds?.length || 0} chapters`, `${groupDraft.chapterIds?.length || 0} гл.`)} · {formatMemoryTokens(estimateTokens(buildChapterMemoryGroupText(groupDraft, chapters)))}</p>
+                                        <p>{text(`${groupDraft.chapterIds?.length || 0} 章`, `${groupDraft.chapterIds?.length || 0} chapters`, `${groupDraft.chapterIds?.length || 0} гл.`)} · {formatMemoryTokens(estimateTokens(buildChapterMemoryGroupText(groupDraft, chapters)), text)}</p>
                                     </div>
                                     <input
                                         className="memory-group-name-input"
@@ -1411,7 +1417,7 @@ function ChapterSynopsisOverviewModal({
                                         </span>
                                         {singleLocked && <span className="synopsis-row-badge locked">{text('锁定', 'Locked', 'Заблокировано')}</span>}
                                         <h3>{selectedEntry.chapter.title || text('未命名章节', 'Untitled Chapter', 'Безымянная глава')}</h3>
-                                        <p>{text(`第 ${selectedEntry.ordinal} 章`, `Chapter ${selectedEntry.ordinal}`, `Глава ${selectedEntry.ordinal}`)} · {formatMemoryTokens(selectedEntry.textTokens)}</p>
+                                        <p>{text(`第 ${selectedEntry.ordinal} 章`, `Chapter ${selectedEntry.ordinal}`, `Глава ${selectedEntry.ordinal}`)} · {formatMemoryTokens(selectedEntry.textTokens, text)}</p>
                                     </div>
                                     <label className="synopsis-lock-row">
                                         <input
@@ -1477,7 +1483,7 @@ function ChapterSynopsisOverviewModal({
                                         </span>
                                         {selectedEntry.synopsis.locked && <span className="synopsis-row-badge locked">{text('锁定', 'Locked', 'Заблокировано')}</span>}
                                         <h3>{selectedEntry.chapter.title || text('未命名章节', 'Untitled Chapter', 'Безымянная глава')}</h3>
-                                        <p>{text(`第 ${selectedEntry.ordinal} 章`, `Chapter ${selectedEntry.ordinal}`, `Глава ${selectedEntry.ordinal}`)} · {formatMemoryTokens(selectedEntry.textTokens)}</p>
+                                        <p>{text(`第 ${selectedEntry.ordinal} 章`, `Chapter ${selectedEntry.ordinal}`, `Глава ${selectedEntry.ordinal}`)} · {formatMemoryTokens(selectedEntry.textTokens, text)}</p>
                                     </div>
 
                                     <div className="synopsis-inspector-block">
@@ -1507,7 +1513,7 @@ function ChapterSynopsisOverviewModal({
                                     <div className="synopsis-inspector-meta">
                                         <span>{getSynopsisSourceLabel(selectedEntry.synopsis, text)}</span>
                                         <span>{formatSynopsisTime(selectedEntry.synopsis.updatedAt || selectedEntry.synopsis.generatedAt, text, language)}</span>
-                                        <span>{formatMemoryTokens(estimateTokens(selectedEntry.synopsisText || selectedEntry.synopsis.summary || ''))}</span>
+                                        <span>{formatMemoryTokens(estimateTokens(selectedEntry.synopsisText || selectedEntry.synopsis.summary || ''), text)}</span>
                                     </div>
                                     <div className="synopsis-inspector-actions">
                                         <button className="btn btn-secondary btn-sm" onClick={() => setActiveView('single')}>
@@ -1801,11 +1807,12 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
         const fallback = baseTitle || t('sidebar.defaultChapterTitle').replace('{num}', chapters.length + 1);
         const existing = new Set(chapters.map(ch => ch.title).filter(Boolean));
         if (!existing.has(fallback)) return fallback;
-        const first = `${fallback}（新）`;
+        const first = `${fallback}${t('sidebar.duplicateTitleSuffix')}`;
         if (!existing.has(first)) return first;
+        const numbered = (n) => `${fallback}${t('sidebar.duplicateTitleSuffixNumbered', { n })}`;
         let index = 2;
-        while (existing.has(`${fallback}（新${index}）`)) index++;
-        return `${fallback}（新${index}）`;
+        while (existing.has(numbered(index))) index++;
+        return numbered(index);
     }, [chapters, t]);
 
     const getNextChapterTitle = useCallback((volumeId) => {
@@ -2923,7 +2930,7 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                                     <span className="gdocs-tab-title" style={{ fontWeight: 600 }}>{ch.title}</span>
                                                     {volWords > 0 && (
                                                         <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                                                            {volWords.toLocaleString()}字
+                                                            {volWords.toLocaleString()}{t('sidebar.wordUnit')}
                                                         </span>
                                                     )}
                                                 </span>
@@ -3061,7 +3068,7 @@ export default function Sidebar({ onOpenHelp, onToggle, editorRef, pushMode }) {
                                                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.text}</span>
                                                 {headingStats[idx] && headingStats[idx].words > 0 && (
                                                     <span className="gdocs-outline-stats">
-                                                        {headingStats[idx].words.toLocaleString()}字
+                                                        {headingStats[idx].words.toLocaleString()}{t('sidebar.wordUnit')}
                                                     </span>
                                                 )}
                                             </div>
@@ -3655,8 +3662,8 @@ function ExportModal({ chapters, onClose, onExport, t }) {
         { value: 'pdf', label: 'PDF' },
     ];
     const variants = [
-        { value: 'body', label: '正文', hint: '不带批注、备注' },
-        { value: 'annotated', label: '批注版', hint: '正文中展开备注' },
+        { value: 'body', label: t('sidebar.exportVariantBody'), hint: t('sidebar.exportVariantBodyHint') },
+        { value: 'annotated', label: t('sidebar.exportVariantAnnotated'), hint: t('sidebar.exportVariantAnnotatedHint') },
     ];
 
     // 导航到上/下一章预览
@@ -3929,7 +3936,7 @@ function ExportModal({ chapters, onClose, onExport, t }) {
                                             onChange={() => toggleGroup(group)}
                                             style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
                                         />
-                                        {t('sidebar.exportGroup') || '第'} {startIdx}–{endIdx} {t('sidebar.exportGroupSuffix') || '章'}
+                                        {t('sidebar.exportGroup')} {startIdx}–{endIdx} {t('sidebar.exportGroupSuffix')}
                                     </label>
                                     {/* 组内章节 */}
                                     {group.map(ch => {
@@ -4005,7 +4012,7 @@ function ExportModal({ chapters, onClose, onExport, t }) {
                         display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10,
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>内容</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>{t('sidebar.exportContentLabel')}</span>
                             {variants.map(v => (
                                 <button
                                     key={v.value}
@@ -4060,7 +4067,7 @@ function ExportModal({ chapters, onClose, onExport, t }) {
                                     borderRadius: 10, opacity: selected.size === 0 ? 0.5 : 1,
                                 }}
                             >
-                                {variant === 'annotated' ? '导出批注版' : (t('sidebar.exportBtn') || '导出')} ({selected.size})
+                                {variant === 'annotated' ? t('sidebar.exportAnnotatedBtn') : t('sidebar.exportBtn')} ({selected.size})
                             </button>
                         </div>
                     </div>
@@ -4106,7 +4113,7 @@ function ExportModal({ chapters, onClose, onExport, t }) {
                                             {' · '}
                                             {t('sidebar.previewLabel') || '预览'}
                                             {' · '}
-                                            {variant === 'annotated' ? '批注版' : '正文'}
+                                            {variant === 'annotated' ? t('sidebar.exportVariantAnnotated') : t('sidebar.exportVariantBody')}
                                         </div>
                                     </div>
                                     <button
@@ -4129,11 +4136,11 @@ function ExportModal({ chapters, onClose, onExport, t }) {
                                         <Book size={14} style={{ flexShrink: 0, marginRight: 4 }} />{t('sidebar.previewAll') || '全书预览'}
                                     </div>
                                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                                        {chapters.length} {t('sidebar.exportGroupSuffix') || '章'}
+                                        {t('sidebar.previewChapterCount', { count: chapters.length })}
                                         {' · '}
                                         {totalWords.toLocaleString()}{t('sidebar.wordUnit') || '字'}
                                         {' · '}
-                                        {variant === 'annotated' ? '批注版' : '正文'}
+                                        {variant === 'annotated' ? t('sidebar.exportVariantAnnotated') : t('sidebar.exportVariantBody')}
                                     </div>
                                 </div>
                             )}

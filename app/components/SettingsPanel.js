@@ -113,19 +113,27 @@ function getIconByName(name) {
     return ICON_MAP[name] || null;
 }
 
-async function parseBalanceResponse(res) {
-    const text = await res.text();
-    if (!text) return {};
+async function parseBalanceResponse(res, text) {
+    const body = await res.text();
+    if (!body) return {};
 
     try {
-        return JSON.parse(text);
+        return JSON.parse(body);
     } catch {
-        const trimmed = text.trim().toLowerCase();
+        const trimmed = body.trim().toLowerCase();
         const isHtml = trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
         return {
             error: isHtml
-                ? `余额查询接口返回了网页错误页（HTTP ${res.status}），请检查部署路由或服务端日志。`
-                : `余额查询接口返回了非 JSON 响应（HTTP ${res.status}）。`,
+                ? text(
+                    `余额查询接口返回了网页错误页（HTTP ${res.status}），请检查部署路由或服务端日志。`,
+                    `The balance endpoint returned an HTML error page (HTTP ${res.status}). Check the deployment routing or server logs.`,
+                    `Запрос баланса вернул HTML-страницу ошибки (HTTP ${res.status}). Проверьте маршрутизацию развертывания или журналы сервера.`,
+                )
+                : text(
+                    `余额查询接口返回了非 JSON 响应（HTTP ${res.status}）。`,
+                    `The balance endpoint returned a non-JSON response (HTTP ${res.status}).`,
+                    `Запрос баланса вернул ответ не в формате JSON (HTTP ${res.status}).`,
+                ),
         };
     }
 }
@@ -2235,7 +2243,7 @@ function ApiConfigForm({ data, onChange }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: buildBalanceRequestBody(),
             });
-            const result = await parseBalanceResponse(res);
+            const result = await parseBalanceResponse(res, text);
             if (res.ok && !result.error) {
                 setBalanceInfo(result);
             } else {
@@ -2261,7 +2269,7 @@ function ApiConfigForm({ data, onChange }) {
                     headers: { 'Content-Type': 'application/json' },
                     body: buildBalanceRequestBody(),
                 });
-                const result = await parseBalanceResponse(res);
+                const result = await parseBalanceResponse(res, text);
                 if (cancelled) return;
                 if (res.ok && !result.error) {
                     setBalanceInfo(result);

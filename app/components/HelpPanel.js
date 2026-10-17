@@ -1952,8 +1952,10 @@ export default function HelpPanel({ open, onClose }) {
                     if (data.done) {
                         if (data.success) {
                             if (data.needRestart) {
-                                const ver = data.diskVersion ? ` v${data.diskVersion}` : '';
-                                setUpdateDone({ success: true, message: text(`代码已更新到${ver}，请重启服务生效`, `Code updated to${ver}. Restart the service to apply it.`, `Код обновлен до${ver}. Перезапустите сервис, чтобы применить изменения.`), needRestart: true });
+                                const message = data.diskVersion
+                                    ? t('update.codeUpdatedRestartVersion', { version: data.diskVersion })
+                                    : t('update.codeUpdatedRestart');
+                                setUpdateDone({ success: true, message, needRestart: true });
                             } else if (data.alreadyUpToDate) {
                                 setUpdateDone({ success: true, message: t('update.alreadyLatest') });
                             } else {
@@ -2314,10 +2316,10 @@ export default function HelpPanel({ open, onClose }) {
                                         textAlign: 'left', lineHeight: 1.7,
                                         marginBottom: 8, width: '100%',
                                     }}>
-                                        <div style={{ fontWeight: 700, marginBottom: 6, color: '#fbbf24' }}>📋 重启步骤：</div>
-                                        <div>1. 停止当前运行的服务（Ctrl+C）</div>
-                                        <div>2. 运行 <code style={{ background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: 4 }}>npm start</code> 或 <code style={{ background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: 4 }}>npm run dev</code></div>
-                                        <div>3. 刷新浏览器页面</div>
+                                        <div style={{ fontWeight: 700, marginBottom: 6, color: '#fbbf24' }}>📋 {text('重启步骤：', 'Restart steps:', 'Шаги перезапуска:')}</div>
+                                        <div>1. {text('停止当前运行的服务（Ctrl+C）', 'Stop the running service (Ctrl+C)', 'Остановите запущенный сервис (Ctrl+C)')}</div>
+                                        <div>2. {text('运行', 'Run', 'Выполните')} <code style={{ background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: 4 }}>npm start</code> {text('或', 'or', 'или')} <code style={{ background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: 4 }}>npm run dev</code></div>
+                                        <div>3. {text('刷新浏览器页面', 'Refresh the browser page', 'Обновите страницу в браузере')}</div>
                                     </div>
                                 ) : (
                                     <button
