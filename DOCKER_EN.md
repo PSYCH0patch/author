@@ -88,7 +88,7 @@ cp .env.example .env
 # Example for OpenAI:
 #   API_KEY=your-key-here
 #   API_BASE_URL=https://api.openai.com/v1
-#   API_MODEL=gpt-4o
+#   API_MODEL=gpt-6-luna
 
 # Restart to apply
 docker compose restart
