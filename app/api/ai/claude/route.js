@@ -11,7 +11,7 @@ import { applyContentSafety } from '../../../lib/content-safety';
 import { proxyFetch } from '../../../lib/proxy-fetch';
 import { rotateKey } from '../../../lib/keyRotator';
 import { isOutboundRequestBlocked, isServerCredentialBlocked, resolveAiCredential, safeUpstreamDetail } from '../../../lib/server-security.mjs';
-import { isSearchRoundBlocked, runDeepSeekSearch, searchFailureToolText, searchNoticeFromError } from '../../../lib/web-search.js';
+import { createToolRoundGuard, formatWebpageForModel, runDeepSeekFetch, runDeepSeekSearch, searchFailureToolText } from '../../../lib/web-search.js';
 
 // Anthropic 格式的搜索工具定义
 const WEB_SEARCH_TOOL = {
@@ -23,6 +23,19 @@ const WEB_SEARCH_TOOL = {
             query: { type: 'string', description: '要搜索的关键词或问题' },
         },
         required: ['query'],
+    },
+};
+
+// 读取网页工具：只在搜索工具是 DeepSeek 且用户开启时提供
+const READ_WEBPAGE_TOOL = {
+    name: 'read_webpage',
+    description: '读取一个网页的完整正文。用户给出链接，或需要某个网页的完整内容而不只是搜索摘要时，调用此工具。',
+    input_schema: {
+        type: 'object',
+        properties: {
+            url: { type: 'string', description: '要读取的网页完整地址（http 或 https）' },
+        },
+        required: ['url'],
     },
 };
 
@@ -61,6 +74,15 @@ async function executeSearch(query, searchConfig, proxyUrl, signal) {
             });
         default: return [];
     }
+}
+
+// DeepSeek 读取网页：由 DeepSeek 服务端抓取目标网址，这里只把网址发给 DeepSeek
+async function executeReadWebpage(pageUrl, searchConfig, proxyUrl, signal) {
+    searchConfig.apiKey = rotateKey(searchConfig.apiKey);
+    return runDeepSeekFetch({
+        url: pageUrl, apiKey: searchConfig.apiKey, baseUrl: searchConfig.baseUrl, signal,
+        fetchImpl: (url, options) => proxyFetch(url, options, proxyUrl),
+    });
 }
 
 async function handlePOST(request) {
@@ -140,6 +162,7 @@ async function handlePOST(request) {
             if (!toolsConfig.searchConfig.provider) {
                 toolsConfig.searchConfig.provider = toolsConfig.searchConfig.tool || 'tavily';
             }
+            const canReadWebpage = toolsConfig.searchConfig.provider === 'deepseek' && toolsConfig.searchConfig.readWebpage === true;
 
             // 第 1 轮：非流式请求，附带搜索工具定义
             const round1Res = await proxyFetch(url, {
@@ -148,7 +171,7 @@ async function handlePOST(request) {
                 body: JSON.stringify({
                     ...baseParams,
                     messages,
-                    tools: [WEB_SEARCH_TOOL],
+                    tools: canReadWebpage ? [WEB_SEARCH_TOOL, READ_WEBPAGE_TOOL] : [WEB_SEARCH_TOOL],
                 }),
             }, proxyUrl);
 
@@ -168,16 +191,15 @@ async function handlePOST(request) {
                 // 收集搜索结果和来源
                 const allSources = [];
                 const toolResults = [];
-                // 限速、余额不足、Key 无效后本轮剩下的搜索直接用同一个错误回复模型，不再请求
-                let blockingSearchError = null;
-                let searchNotice = null;
+                // 限速、余额不足、Key 无效后本轮剩下的请求直接用同一个错误回复模型；读取网页每轮有上限
+                const toolGuard = createToolRoundGuard();
 
                 for (const toolBlock of toolUseBlocks) {
                     if (toolBlock.name === 'web_search') {
                         const searchQuery = toolBlock.input?.query || userPrompt;
 
                         try {
-                            if (blockingSearchError) throw blockingSearchError;
+                            toolGuard.assertAvailable('search');
                             const results = await executeSearch(searchQuery, toolsConfig.searchConfig, proxyUrl, signal);
 
                             const resultText = results.length > 0
@@ -195,15 +217,43 @@ async function handlePOST(request) {
                             }
                         } catch (searchErr) {
                             signal.throwIfAborted();
-                            if (searchErr !== blockingSearchError) console.error('搜索执行失败:', searchErr?.code || searchErr?.name || 'UNKNOWN');
-                            if (isSearchRoundBlocked(searchErr)) blockingSearchError = searchErr;
-                            searchNotice ||= searchNoticeFromError(searchErr);
+                            if (!toolGuard.isKnown(searchErr)) console.error('搜索执行失败:', searchErr?.code || searchErr?.name || 'UNKNOWN');
+                            toolGuard.record('search', searchErr);
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolBlock.id,
-                                content: searchFailureToolText(searchErr),
+                                content: searchFailureToolText(searchErr, 'search'),
                             });
                         }
+                    } else if (toolBlock.name === 'read_webpage' && canReadWebpage) {
+                        try {
+                            toolGuard.assertAvailable('fetch');
+                            const page = await executeReadWebpage(toolBlock.input?.url, toolsConfig.searchConfig, proxyUrl, signal);
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolBlock.id,
+                                content: formatWebpageForModel(page),
+                            });
+                            if (!allSources.some(source => source.uri === page.url)) {
+                                allSources.push({ title: page.title || page.url, uri: page.url });
+                            }
+                        } catch (fetchErr) {
+                            signal.throwIfAborted();
+                            if (!toolGuard.isKnown(fetchErr)) console.error('读取网页失败:', fetchErr?.code || fetchErr?.name || 'UNKNOWN');
+                            toolGuard.record('fetch', fetchErr);
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolBlock.id,
+                                content: searchFailureToolText(fetchErr, 'fetch'),
+                            });
+                        }
+                    } else {
+                        // 每个 tool_use 都要有对应的 tool_result，否则第 2 轮会被服务商拒绝
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolBlock.id,
+                            content: '这个工具不可用，请直接回答用户的问题。',
+                        });
                     }
                 }
 
@@ -231,7 +281,7 @@ async function handlePOST(request) {
                 }
 
                 // 流式转发 + 前置发送搜索来源和搜索失败提示
-                return streamClaudeResponse(round2Res, allSources, lifecycle, searchNotice);
+                return streamClaudeResponse(round2Res, allSources, lifecycle, toolGuard.notices);
             }
 
             // 模型没调用工具 → 直接把非流式结果包装成 SSE 返回
@@ -352,10 +402,10 @@ function errorResponse(status, errorText = '') {
 }
 
 // ===== 流式转发 Claude SSE 响应（可选前置搜索来源）=====
-function streamClaudeResponse(response, sources, lifecycle, searchNotice = null) {
+function streamClaudeResponse(response, sources, lifecycle, searchNotices = []) {
     return streamAiResponse(response, lifecycle, createClaudeMapper(), [
         ...(sources?.length ? [{ grounding: { searchQueries: [], sources, supports: [] } }] : []),
-        ...(searchNotice ? [{ searchNotice }] : []),
+        ...searchNotices.map(searchNotice => ({ searchNotice })),
     ]);
 }
 

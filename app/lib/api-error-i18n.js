@@ -144,6 +144,12 @@ export function localizeApiError(payload, text) {
             return text(`联网搜索${searchToolLabel(payload, '（', '）')}暂时不可用，有搜索没完成，回答可能缺少最新资料。请稍后再试。`, `Web search${searchToolLabel(payload)} is temporarily unavailable. Some searches did not run, so the answer may miss recent information. Please retry later.`, `Веб-поиск${searchToolLabel(payload)} временно недоступен: часть запросов не выполнена, в ответе может не хватать свежих данных. Повторите позже.`);
         case 'SEARCH_REQUEST_REJECTED':
             return text(`联网搜索${searchToolLabel(payload, '（', '）')}拒绝了请求，有搜索没完成。请检查搜索的 API 地址。`, `Web search${searchToolLabel(payload)} rejected the request, so some searches did not run. Check the search API URL.`, `Веб-поиск${searchToolLabel(payload)} отклонил запрос, часть запросов не выполнена. Проверьте адрес API поиска.`);
+        case 'FETCH_INVALID_URL':
+            return text(`读取网页${searchToolLabel(payload, '（', '）')}：网页地址格式不对（只支持 http 或 https），没有读取。`, `Page reading${searchToolLabel(payload)}: the page URL is not valid (only http or https), so it was not read.`, `Чтение страницы${searchToolLabel(payload)}: неверный адрес страницы (только http или https), страница не прочитана.`);
+        case 'FETCH_BLOCKED':
+            return text(`读取网页${searchToolLabel(payload, '（', '）')}：这个网站不允许读取，回答里没有用上网页全文。`, `Page reading${searchToolLabel(payload)}: this site does not allow reading, so the answer does not use the full page text.`, `Чтение страницы${searchToolLabel(payload)}: сайт не разрешает чтение, ответ дан без полного текста страницы.`);
+        case 'FETCH_UNREADABLE':
+            return text(`读取网页${searchToolLabel(payload, '（', '）')}：没能读到这个网页的正文（可能打不开，或不是文字页面），回答里没有用上网页全文。`, `Page reading${searchToolLabel(payload)}: could not read the page text (the page may be unavailable or not a text page), so the answer does not use it.`, `Чтение страницы${searchToolLabel(payload)}: не удалось прочитать текст страницы (она может быть недоступна или не содержит текста), ответ дан без него.`);
         case 'SEARCH_INVALID_RESPONSE':
             return text(`联网搜索${searchToolLabel(payload, '（', '）')}返回了无法识别的结果，请检查搜索的 API 地址。`, `Web search${searchToolLabel(payload)} returned an unrecognized response. Check the search API URL.`, `Веб-поиск${searchToolLabel(payload)} вернул нераспознанный ответ. Проверьте адрес API поиска.`);
 

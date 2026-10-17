@@ -12,7 +12,7 @@ import { applyContentSafety } from '../../lib/content-safety';
 import { proxyFetch } from '../../lib/proxy-fetch';
 import { rotateKey } from '../../lib/keyRotator';
 import { isOutboundRequestBlocked, isServerCredentialBlocked, resolveAiCredential, safeUpstreamDetail } from '../../lib/server-security.mjs';
-import { isSearchRoundBlocked, runDeepSeekSearch, searchFailureToolText, searchNoticeFromError } from '../../lib/web-search.js';
+import { createToolRoundGuard, formatWebpageForModel, runDeepSeekFetch, runDeepSeekSearch, searchFailureToolText } from '../../lib/web-search.js';
 
 // Function Calling 搜索工具定义
 const WEB_SEARCH_TOOL = {
@@ -29,6 +29,25 @@ const WEB_SEARCH_TOOL = {
                 },
             },
             required: ['query'],
+        },
+    },
+};
+
+// 读取网页工具：只在搜索工具是 DeepSeek 且用户开启时提供
+const READ_WEBPAGE_TOOL = {
+    type: 'function',
+    function: {
+        name: 'read_webpage',
+        description: 'Read the full text of a web page. Use this when the user gives a link, or when you need the complete content of a specific page rather than a short search summary.',
+        parameters: {
+            type: 'object',
+            properties: {
+                url: {
+                    type: 'string',
+                    description: 'The full http or https URL of the page to read',
+                },
+            },
+            required: ['url'],
         },
     },
 };
@@ -126,6 +145,15 @@ async function executeSearch(query, searchConfig, proxyUrl, signal) {
     }
 }
 
+// DeepSeek 读取网页：由 DeepSeek 服务端抓取目标网址，这里只把网址发给 DeepSeek
+async function executeReadWebpage(pageUrl, searchConfig, proxyUrl, signal) {
+    searchConfig.apiKey = rotateKey(searchConfig.apiKey);
+    return runDeepSeekFetch({
+        url: pageUrl, apiKey: searchConfig.apiKey, baseUrl: searchConfig.baseUrl, signal,
+        fetchImpl: (url, options) => proxyFetch(url, options, proxyUrl),
+    });
+}
+
 async function handlePOST(request) {
     const lifecycle = createGenerationLifecycle(request.signal);
     const { signal } = lifecycle;
@@ -181,13 +209,14 @@ async function handlePOST(request) {
             if (!toolsConfig.searchConfig.provider) {
                 toolsConfig.searchConfig.provider = toolsConfig.searchConfig.tool || 'tavily';
             }
+            const canReadWebpage = toolsConfig.searchConfig.provider === 'deepseek' && toolsConfig.searchConfig.readWebpage === true;
             // 第 1 轮：非流式请求，附带搜索工具定义
             const round1Res = await proxyFetch(url, {
                 method: 'POST', signal,
                 headers,
                 body: JSON.stringify({
                     model, messages, ...baseParams,
-                    tools: [WEB_SEARCH_TOOL],
+                    tools: canReadWebpage ? [WEB_SEARCH_TOOL, READ_WEBPAGE_TOOL] : [WEB_SEARCH_TOOL],
                 }),
             }, proxyUrl);
 
@@ -216,21 +245,20 @@ async function handlePOST(request) {
                 // 收集搜索结果和来源
                 const extendedMessages = [...messages, cleanedAssistantMsg];
                 const allSources = [];
-                // 限速、余额不足、Key 无效后本轮剩下的搜索直接用同一个错误回复模型，不再请求
-                let blockingSearchError = null;
-                let searchNotice = null;
+                // 限速、余额不足、Key 无效后本轮剩下的请求直接用同一个错误回复模型；读取网页每轮有上限
+                const toolGuard = createToolRoundGuard();
 
                 for (const toolCall of assistantMsg.tool_calls) {
-                    if (toolCall.function?.name === 'web_search') {
-                        let searchQuery = '';
-                        try {
-                            const args = JSON.parse(toolCall.function.arguments);
-                            searchQuery = args.query || userPrompt;
-                        } catch { searchQuery = userPrompt; }
+                    const toolName = toolCall.function?.name;
+                    let args = {};
+                    try { args = JSON.parse(toolCall.function?.arguments || '{}') || {}; } catch { /* 参数无法解析时按空参数处理 */ }
+
+                    if (toolName === 'web_search') {
+                        const searchQuery = args.query || userPrompt;
 
                         // 直接内联执行搜索（不通过 HTTP 调用自身）
                         try {
-                            if (blockingSearchError) throw blockingSearchError;
+                            toolGuard.assertAvailable('search');
                             const results = await executeSearch(searchQuery, toolsConfig.searchConfig, proxyUrl, signal);
 
                             const resultText = results.length > 0
@@ -248,15 +276,43 @@ async function handlePOST(request) {
                             }
                         } catch (searchErr) {
                             signal.throwIfAborted();
-                            if (searchErr !== blockingSearchError) console.error('搜索执行失败:', searchErr?.code || searchErr?.name || 'UNKNOWN');
-                            if (isSearchRoundBlocked(searchErr)) blockingSearchError = searchErr;
-                            searchNotice ||= searchNoticeFromError(searchErr);
+                            if (!toolGuard.isKnown(searchErr)) console.error('搜索执行失败:', searchErr?.code || searchErr?.name || 'UNKNOWN');
+                            toolGuard.record('search', searchErr);
                             extendedMessages.push({
                                 role: 'tool',
                                 tool_call_id: toolCall.id,
-                                content: searchFailureToolText(searchErr),
+                                content: searchFailureToolText(searchErr, 'search'),
                             });
                         }
+                    } else if (toolName === 'read_webpage' && canReadWebpage) {
+                        try {
+                            toolGuard.assertAvailable('fetch');
+                            const page = await executeReadWebpage(args.url, toolsConfig.searchConfig, proxyUrl, signal);
+                            extendedMessages.push({
+                                role: 'tool',
+                                tool_call_id: toolCall.id,
+                                content: formatWebpageForModel(page),
+                            });
+                            if (!allSources.some(source => source.uri === page.url)) {
+                                allSources.push({ title: page.title || page.url, uri: page.url });
+                            }
+                        } catch (fetchErr) {
+                            signal.throwIfAborted();
+                            if (!toolGuard.isKnown(fetchErr)) console.error('读取网页失败:', fetchErr?.code || fetchErr?.name || 'UNKNOWN');
+                            toolGuard.record('fetch', fetchErr);
+                            extendedMessages.push({
+                                role: 'tool',
+                                tool_call_id: toolCall.id,
+                                content: searchFailureToolText(fetchErr, 'fetch'),
+                            });
+                        }
+                    } else {
+                        // 每个 tool_call 都要有对应的 tool 消息，否则第 2 轮会被服务商拒绝
+                        extendedMessages.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            content: '这个工具不可用，请直接回答用户的问题。',
+                        });
                     }
                 }
 
@@ -278,7 +334,7 @@ async function handlePOST(request) {
                 }
 
                 // 流式转发 + 前置发送搜索来源和搜索失败提示
-                return streamWithGrounding(round2Res, allSources, lifecycle, searchNotice);
+                return streamWithGrounding(round2Res, allSources, lifecycle, toolGuard.notices);
             }
 
             // 模型没调用工具 → 直接把非流式结果包装成 SSE 返回
@@ -412,10 +468,10 @@ function errorResponse(status, errorText = '') {
 }
 
 /** 流式转发上游 SSE 并可选前置 grounding 来源 */
-function streamWithGrounding(response, sources, lifecycle, searchNotice = null) {
+function streamWithGrounding(response, sources, lifecycle, searchNotices = []) {
     return streamAiResponse(response, lifecycle, createOpenAiMapper(), [
         ...(sources?.length ? [{ grounding: { searchQueries: [], sources, supports: [] } }] : []),
-        ...(searchNotice ? [{ searchNotice }] : []),
+        ...searchNotices.map(searchNotice => ({ searchNotice })),
     ]);
 }
 

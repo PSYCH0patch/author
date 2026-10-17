@@ -586,11 +586,13 @@
         "searchEngine": "搜索引擎",
         "tavilyHint": "免费 1000次/月 → tavily.com",
         "exaHint": "按量计费，注册赠送额度 → exa.ai",
-        "searchToolDeepSeekPricing": "按次收费（2026 年 11 月 1 日北京时间起）：每 1000 次成功搜索 0.75 美元，从 DeepSeek 账户余额扣；失败和没有结果的搜索不收费。每个账号每秒最多搜 5 次。",
+        "searchToolDeepSeekPricing": "搜索和读取网页都按次收费（2026 年 11 月 1 日北京时间起）：每 1000 次成功请求 0.75 美元，从 DeepSeek 账户余额扣；失败和没有结果的不收费。每个账号每秒最多 5 次（搜索和读取网页分开算）。",
         "searchDeepSeekSuggest": "你已经配置了 DeepSeek：搜索工具选「DeepSeek」会自动填好 Key 和地址，不用另外申请。",
         "searchDeepSeekKeyPlaceholder": "留空则使用已配置的 DeepSeek 服务商 Key",
         "searchDeepSeekKeyFromProvider": "已自动填入 DeepSeek 服务商的 Key，可以改成别的。",
-        "searchDeepSeekBaseUrlPlaceholder": "留空则使用 {url}"
+        "searchDeepSeekBaseUrlPlaceholder": "留空则使用 {url}",
+        "searchDeepSeekReadWebpage": "允许 AI 读取网页全文",
+        "searchDeepSeekReadWebpageDesc": "你在对话里给出网页链接时，AI 会让 DeepSeek 读取网页正文再回答。每次回答最多读 3 个网页，每读一个网页算一次请求。"
     },
     "preferences": {
         "intro": "在这里可以随时更改应用程序的语言和视觉主题偏好。所有的更改都会实时生效并保存在本地。",

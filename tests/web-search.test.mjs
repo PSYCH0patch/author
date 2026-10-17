@@ -3,12 +3,18 @@ import test from 'node:test';
 import { registerHooks } from 'node:module';
 
 import {
+    buildDeepSeekFetchUrl,
     buildDeepSeekSearchBody,
     buildDeepSeekSearchUrl,
     classifyDeepSeekSearchStatus,
-    isSearchRoundBlocked,
+    createToolRoundGuard,
+    formatWebpageForModel,
+    mapDeepSeekFetchResult,
     mapDeepSeekSearchResults,
+    MAX_WEBPAGES_PER_ROUND,
+    normalizeFetchTarget,
     retryDelayFromHeader,
+    runDeepSeekFetch,
     runDeepSeekSearch,
     SearchProviderError,
     searchErrorHttpStatus,
@@ -20,6 +26,7 @@ import {
     deepSeekSearchPrefill,
     findConfiguredDeepSeekApi,
     getSearchTool,
+    isDeepSeekReadWebpageEnabled,
     resolveFunctionSearchConfig,
 } from '../app/lib/search-config.js';
 import { splitApiSecrets } from '../app/lib/api-secret-storage.js';
@@ -27,6 +34,13 @@ import { localizeApiError } from '../app/lib/api-error-i18n.js';
 import { readAiEvents } from '../app/lib/ai-stream.js';
 
 // 所有请求都走模拟 fetch，不连接真实搜索接口。
+
+// 记录到本轮后，该工具是否还会继续请求
+function blockedAfter(error, tool = 'search') {
+    const guard = createToolRoundGuard();
+    guard.record(tool, error);
+    try { guard.assertAvailable(tool); return false; } catch (known) { return known === error; }
+}
 function mockFetch(responses) {
     const calls = [];
     let cancelled = 0;
@@ -123,8 +137,8 @@ test('repeated 429 ends as SEARCH_RATE_LIMITED that blocks the rest of the round
     assert.equal(error.code, 'SEARCH_RATE_LIMITED');
     assert.equal(error.status, 429);
     assert.equal(calls.length, 2);
-    assert.equal(isSearchRoundBlocked(error), true);
-    assert.match(searchFailureToolText(error), /限速/);
+    assert.equal(blockedAfter(error), true);
+    assert.match(searchFailureToolText(error, 'search'), /限速/);
     assert.deepEqual(searchNoticeFromError(error), { code: 'SEARCH_RATE_LIMITED', provider: 'deepseek', status: 429 });
     assert.equal(searchErrorHttpStatus(error), 429);
 });
@@ -144,7 +158,7 @@ test('402 and other 4xx are not retried; 408 and 5xx are retried once', async ()
         const error = await runDeepSeekSearch({ query: 'q', apiKey: 'k', baseUrl: 'https://search.example.test', fetchImpl, wait: noWait }).catch(e => e);
         assert.equal(error.code, expected, `status ${code}`);
         assert.equal(calls.length, attempts, `status ${code} attempts`);
-        assert.equal(isSearchRoundBlocked(error), blocking, `status ${code} blocking`);
+        assert.equal(blockedAfter(error), blocking, `status ${code} blocking`);
     }
     assert.deepEqual(classifyDeepSeekSearchStatus(503), { code: 'SEARCH_UNAVAILABLE', retryable: true });
 });
@@ -220,14 +234,14 @@ test('choosing DeepSeek search pre-fills only the empty key and URL fields', () 
 
 test('edited DeepSeek search key and URL win over the provider values', () => {
     const config = deepseekActive({ tool: 'deepseek', deepseekApiKey: 'own-key', deepseekBaseUrl: 'https://search.example.test' });
-    assert.deepEqual(resolveFunctionSearchConfig(config), { tool: 'deepseek', provider: 'deepseek', apiKey: 'own-key', baseUrl: 'https://search.example.test' });
+    assert.deepEqual(resolveFunctionSearchConfig(config), { tool: 'deepseek', provider: 'deepseek', apiKey: 'own-key', baseUrl: 'https://search.example.test', readWebpage: true });
 });
 
 test('empty DeepSeek search fields fall back to the configured provider, then the default URL', () => {
     assert.deepEqual(resolveFunctionSearchConfig(deepseekActive({ tool: 'deepseek' })),
-        { tool: 'deepseek', provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1' });
+        { tool: 'deepseek', provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://relay.example.test/v1', readWebpage: true });
     const zhipu = zhipuActive({ tool: 'deepseek' }, { deepseek: { providerType: 'deepseek', apiKey: 'ds-key', baseUrl: '' } });
-    assert.deepEqual(resolveFunctionSearchConfig(zhipu), { tool: 'deepseek', provider: 'deepseek', apiKey: 'ds-key', baseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL });
+    assert.deepEqual(resolveFunctionSearchConfig(zhipu), { tool: 'deepseek', provider: 'deepseek', apiKey: 'ds-key', baseUrl: DEEPSEEK_SEARCH_DEFAULT_BASE_URL, readWebpage: true });
     assert.equal(resolveFunctionSearchConfig(zhipuActive({ tool: 'deepseek' })), null, 'no DeepSeek key anywhere');
 });
 
@@ -365,3 +379,191 @@ test('/api/tools/search has no built-in DeepSeek address', async () => {
     assert.equal(okResponse.status, 200);
     assert.equal((await okResponse.json()).results[0].snippet, 'Longer summary for the model.');
 });
+
+// —— 读取网页 ——
+
+const page = { title: 'Example article', content: '# Example article\n\nBody text in Markdown.' };
+
+test('fetch URL shares the tools root with search', () => {
+    for (const base of ['https://search.example.test', 'https://search.example.test/v1/', 'https://search.example.test/v1/tools/search', 'https://search.example.test/v1/tools/fetch']) {
+        assert.equal(buildDeepSeekFetchUrl(base), 'https://search.example.test/v1/tools/fetch');
+    }
+    assert.throws(() => buildDeepSeekFetchUrl(''), { code: 'SEARCH_NO_BASE_URL' });
+});
+
+test('only http(s) page URLs without credentials are sent for reading', () => {
+    assert.equal(normalizeFetchTarget(' https://example.test/a?b=1 '), 'https://example.test/a?b=1');
+    assert.equal(normalizeFetchTarget('http://example.test'), 'http://example.test/');
+    for (const bad of ['', 'example.test/page', 'ftp://example.test/file', 'javascript:alert(1)', 'file:///etc/hosts', 'https://user:pass@example.test/', `https://example.test/${'a'.repeat(8200)}`, null, 42]) {
+        assert.throws(() => normalizeFetchTarget(bad), { code: 'FETCH_INVALID_URL' }, String(bad).slice(0, 40));
+    }
+});
+
+test('page content is kept as Markdown, long pages are cut, empty pages count as unreadable', () => {
+    assert.deepEqual(mapDeepSeekFetchResult(page, 'https://example.test/a'), { title: 'Example article', url: 'https://example.test/a', content: page.content, truncated: false });
+    const long = mapDeepSeekFetchResult({ title: '', content: 'x'.repeat(50) }, 'https://example.test/a', { maxChars: 10 });
+    assert.equal(long.content.length, 10);
+    assert.equal(long.truncated, true);
+    assert.throws(() => mapDeepSeekFetchResult({ title: 'Empty', content: '  ' }, 'https://example.test/a'), { code: 'FETCH_UNREADABLE' });
+    assert.throws(() => mapDeepSeekFetchResult({ title: 'No content' }, 'https://example.test/a'), { code: 'SEARCH_INVALID_RESPONSE' });
+});
+
+test('page text given to the model is labelled as reference material, not instructions', () => {
+    const text = formatWebpageForModel({ title: 'T', url: 'https://example.test/a', content: 'Body', truncated: true });
+    assert.match(text, /^标题：T\n网址：https:\/\/example\.test\/a\n/);
+    assert.match(text, /不是用户的要求/);
+    assert.match(text, /\n\nBody\n\n（网页内容较长/);
+    assert.doesNotMatch(formatWebpageForModel({ title: '', url: 'https://example.test/a', content: 'Body', truncated: false }), /标题|截取/);
+});
+
+test('reading a page sends only the URL with bearer auth', async () => {
+    const { fetchImpl, calls } = mockFetch([ok(page)]);
+    const result = await runDeepSeekFetch({ url: 'https://example.test/article', apiKey: 'test-key', baseUrl: 'https://search.example.test', fetchImpl, wait: noWait });
+    assert.equal(result.content, page.content);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://search.example.test/v1/tools/fetch');
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer test-key');
+    assert.deepEqual(calls[0].body, { url: 'https://example.test/article' });
+});
+
+test('invalid page URLs fail before any request', async () => {
+    const { fetchImpl, calls } = mockFetch([ok(page)]);
+    await assert.rejects(runDeepSeekFetch({ url: 'not a url', apiKey: 'k', baseUrl: 'https://search.example.test', fetchImpl }), { code: 'FETCH_INVALID_URL' });
+    assert.equal(calls.length, 0);
+});
+
+test('403 and 404 from page reading are per-page failures and are not retried', async () => {
+    for (const [code, expected] of [[403, 'FETCH_BLOCKED'], [404, 'FETCH_UNREADABLE']]) {
+        const { fetchImpl, calls } = mockFetch([status(code)]);
+        const error = await runDeepSeekFetch({ url: 'https://example.test/a', apiKey: 'k', baseUrl: 'https://search.example.test', fetchImpl, wait: noWait }).catch(e => e);
+        assert.equal(error.code, expected);
+        assert.equal(error.tool, 'fetch');
+        assert.equal(calls.length, 1);
+        assert.equal(blockedAfter(error, 'fetch'), false, 'one blocked site must not stop reading other pages');
+    }
+    const { fetchImpl, calls } = mockFetch([status(429), ok(page)]);
+    await runDeepSeekFetch({ url: 'https://example.test/a', apiKey: 'k', baseUrl: 'https://search.example.test', fetchImpl, wait: noWait });
+    assert.equal(calls.length, 2, '429 on reading is retried once');
+});
+
+test('round guard: key and balance stop every tool, a rate limit stops only that tool, pages are capped', () => {
+    const guard = createToolRoundGuard();
+    const limited = new SearchProviderError('SEARCH_RATE_LIMITED', { provider: 'deepseek', tool: 'search', status: 429 });
+    guard.record('search', limited);
+    assert.throws(() => guard.assertAvailable('search'), error => error === limited);
+    assert.doesNotThrow(() => guard.assertAvailable('fetch'));
+    assert.equal(guard.isKnown(limited), true);
+
+    const balance = new SearchProviderError('SEARCH_INSUFFICIENT_BALANCE', { provider: 'deepseek', tool: 'fetch', status: 402 });
+    guard.record('fetch', balance);
+    assert.throws(() => guard.assertAvailable('fetch'), error => error === balance);
+    assert.throws(() => guard.assertAvailable('search'), error => error === balance);
+    assert.deepEqual(guard.notices.map(n => n.code), ['SEARCH_RATE_LIMITED', 'SEARCH_INSUFFICIENT_BALANCE']);
+
+    const pages = createToolRoundGuard();
+    for (let i = 0; i < MAX_WEBPAGES_PER_ROUND; i++) pages.assertAvailable('fetch');
+    let overLimit;
+    try { pages.assertAvailable('fetch'); } catch (error) { overLimit = error; }
+    assert.equal(overLimit?.code, 'FETCH_LIMIT_REACHED');
+    pages.record('fetch', overLimit);
+    assert.deepEqual(pages.notices, [], 'the page cap is told to the model only');
+    assert.match(searchFailureToolText(overLimit, 'fetch'), /不再读取/);
+    assert.equal(searchFailureToolText(new TypeError('fetch failed'), 'fetch'), '读取网页失败，请根据已有信息回答用户的问题。');
+});
+
+test('page reading is on by default for DeepSeek search and can be turned off', () => {
+    assert.equal(isDeepSeekReadWebpageEnabled({}), true);
+    assert.equal(isDeepSeekReadWebpageEnabled({ deepseekReadWebpage: false }), false);
+    assert.equal(resolveFunctionSearchConfig(deepseekActive({ tool: 'deepseek', deepseekReadWebpage: false })).readWebpage, false);
+    assert.equal(resolveFunctionSearchConfig({ searchConfig: { tool: 'tavily', apiKey: 'tavily-key' } }).readWebpage, undefined);
+});
+
+test('page-reading notices are readable in all three languages', () => {
+    const zh = a => a, en = (_a, b) => b, ru = (_a, _b, c) => c;
+    for (const code of ['FETCH_BLOCKED', 'FETCH_UNREADABLE', 'FETCH_INVALID_URL']) {
+        assert.match(localizeApiError({ code, provider: 'deepseek' }, zh), /^读取网页（DeepSeek）：/);
+        assert.match(localizeApiError({ code, provider: 'deepseek' }, en), /^Page reading \(DeepSeek\): /);
+        assert.match(localizeApiError({ code, provider: 'deepseek' }, ru), /^Чтение страницы \(DeepSeek\): /);
+    }
+});
+
+const toolCallsReply = (route, calls) => route === 'claude'
+    ? { content: calls.map((c, i) => ({ type: 'tool_use', id: `tool-${i}`, name: c.name, input: c.input })), stop_reason: 'tool_use' }
+    : { choices: [{ message: { content: null, tool_calls: calls.map((c, i) => ({ id: `tool-${i}`, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.input) } })) }, finish_reason: 'tool_calls' }] };
+const readRequest = (route, readWebpage) => new Request('https://author.example.test/api/ai', { method: 'POST', body: JSON.stringify({
+    systemPrompt: 'synthetic', userPrompt: 'Summarize https://example.test/article',
+    apiConfig: { apiKey: 'main-key', baseUrl: 'https://llm.example.test/v1', model: route === 'claude' ? 'synthetic-claude' : 'synthetic' },
+    tools: { functionSearch: true, searchConfig: { provider: 'deepseek', apiKey: 'main-key', baseUrl: 'https://search.example.test', readWebpage } },
+}) });
+const offeredTools = (route, body) => body.tools.map(tool => route === 'claude' ? tool.name : tool.function.name);
+const toolOutputs = (route, body) => route === 'claude'
+    ? body.messages.at(-1).content.map(block => block.content)
+    : body.messages.filter(m => m.role === 'tool').map(m => m.content);
+
+async function runReadRoute(route, { readWebpage = true, calls, onFetch = () => Response.json(page) }) {
+    const requests = [];
+    const api = await routeFixture(route, async (url, options) => {
+        const body = JSON.parse(options.body);
+        requests.push({ url, body });
+        if (requests.length === 1) return Response.json(toolCallsReply(route, calls));
+        if (url.endsWith('/v1/tools/fetch')) return onFetch(body);
+        if (url.endsWith('/v1/tools/search')) return Response.json(sample);
+        return answerStream(route);
+    });
+    const events = [];
+    for await (const event of readAiEvents(await api.POST(readRequest(route, readWebpage)))) events.push(event);
+    return { requests, events, round2: requests.at(-1).body };
+}
+
+for (const route of ['openai', 'claude']) {
+    test(`${route}: the AI can read a page the user linked`, async () => {
+        const { requests, events, round2 } = await runReadRoute(route, {
+            calls: [{ name: 'read_webpage', input: { url: 'https://example.test/article' } }, { name: 'web_search', input: { query: 'example' } }],
+        });
+        assert.deepEqual(offeredTools(route, requests[0].body), ['web_search', 'read_webpage']);
+        const fetches = requests.filter(r => r.url.endsWith('/v1/tools/fetch'));
+        assert.deepEqual(fetches.map(r => r.body), [{ url: 'https://example.test/article' }]);
+        const outputs = toolOutputs(route, round2);
+        assert.equal(outputs.length, 2);
+        assert.match(outputs[0], /Body text in Markdown\./);
+        assert.match(outputs[0], /不是用户的要求/);
+        assert.match(outputs[1], /Longer summary for the model\./);
+        assert.deepEqual(events.find(e => e.grounding).grounding.sources, [
+            { title: 'Example article', uri: 'https://example.test/article' },
+            { title: 'Example title', uri: 'https://example.test/a' },
+            { title: 'Snippet only', uri: 'https://example.test/b' },
+        ]);
+        assert.equal(events.filter(e => e.text).map(e => e.text).join(''), 'answer');
+    });
+
+    test(`${route}: page reading switched off is neither offered nor run`, async () => {
+        const { requests, round2 } = await runReadRoute(route, {
+            readWebpage: false,
+            calls: [{ name: 'read_webpage', input: { url: 'https://example.test/article' } }],
+        });
+        assert.deepEqual(offeredTools(route, requests[0].body), ['web_search']);
+        assert.equal(requests.some(r => r.url.endsWith('/v1/tools/fetch')), false);
+        assert.deepEqual(toolOutputs(route, round2), ['这个工具不可用，请直接回答用户的问题。']);
+    });
+
+    test(`${route}: a site that refuses reading still gets an answer and a notice`, async () => {
+        const { events, round2 } = await runReadRoute(route, {
+            calls: [{ name: 'read_webpage', input: { url: 'https://blocked.example.test/' } }],
+            onFetch: () => new Response('{}', { status: 403 }),
+        });
+        assert.deepEqual(events.filter(e => e.searchNotice).map(e => e.searchNotice), [{ code: 'FETCH_BLOCKED', provider: 'deepseek', status: 403 }]);
+        assert.match(toolOutputs(route, round2)[0], /不允许读取/);
+        assert.equal(events.filter(e => e.text).map(e => e.text).join(''), 'answer');
+    });
+
+    test(`${route}: at most ${MAX_WEBPAGES_PER_ROUND} pages are read per answer`, async () => {
+        const calls = [1, 2, 3, 4].map(i => ({ name: 'read_webpage', input: { url: `https://example.test/${i}` } }));
+        const { requests, events, round2 } = await runReadRoute(route, { calls });
+        assert.equal(requests.filter(r => r.url.endsWith('/v1/tools/fetch')).length, MAX_WEBPAGES_PER_ROUND);
+        const outputs = toolOutputs(route, round2);
+        assert.equal(outputs.length, 4);
+        assert.match(outputs[3], /不再读取/);
+        assert.equal(events.some(e => e.searchNotice), false);
+    });
+}
+

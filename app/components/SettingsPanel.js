@@ -41,7 +41,7 @@ import {
 import SettingsTree from './SettingsTree';
 import { useI18n } from '../lib/useI18n';
 import { localizeApiError } from '../lib/api-error-i18n';
-import { DEEPSEEK_SEARCH_DEFAULT_BASE_URL, SEARCH_TOOL_KEY_PAGES, SEARCH_TOOL_LABELS, SEARCH_TOOLS, deepSeekSearchPrefill, findConfiguredDeepSeekApi, getSearchTool } from '../lib/search-config';
+import { DEEPSEEK_SEARCH_DEFAULT_BASE_URL, SEARCH_TOOL_KEY_PAGES, SEARCH_TOOL_LABELS, SEARCH_TOOLS, deepSeekSearchPrefill, findConfiguredDeepSeekApi, getSearchTool, isDeepSeekReadWebpageEnabled } from '../lib/search-config';
 import { apiPath } from '../lib/api-base';
 import { testAiConnection } from '../lib/ai-direct';
 import { getEmbeddingProviderConfig } from '../lib/embedding-provider-config';
@@ -2811,6 +2811,15 @@ function ApiConfigForm({ data, onChange }) {
                                     <FieldInput label={text(`${searchToolLabel} API 地址`, `${searchToolLabel} API URL`, `${searchToolLabel} API URL`)} value={data.searchConfig?.[searchBaseUrlField] || ''} onChange={v => updateSearchConfig({ [searchBaseUrlField]: v })} placeholder={isDeepSeekSearch
                                         ? t('apiConfig.searchDeepSeekBaseUrlPlaceholder', { url: configuredDeepSeek?.baseUrl || DEEPSEEK_SEARCH_DEFAULT_BASE_URL })
                                         : searchTool === 'exa' ? text('https://api.exa.ai（默认，可留空）', 'https://api.exa.ai (default, can be blank)', 'https://api.exa.ai (по умолчанию, можно оставить пустым)') : text('https://api.tavily.com（默认，可留空）', 'https://api.tavily.com (default, can be blank)', 'https://api.tavily.com (по умолчанию, можно оставить пустым)')} />
+                                    {isDeepSeekSearch && (
+                                        <div style={{ marginBottom: 4 }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)' }}>
+                                                <input type="checkbox" checked={isDeepSeekReadWebpageEnabled(data.searchConfig)} onChange={e => updateSearchConfig({ deepseekReadWebpage: e.target.checked })} style={{ margin: 0 }} />
+                                                {t('apiConfig.searchDeepSeekReadWebpage')}
+                                            </label>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, paddingLeft: 22, lineHeight: 1.5 }}>{t('apiConfig.searchDeepSeekReadWebpageDesc')}</div>
+                                        </div>
+                                    )}
                                 </div>
                             )
                         )}

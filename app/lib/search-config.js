@@ -3,7 +3,8 @@
 // searchConfig 存在本地 API 配置里，所有以 apiKey 结尾的字段按 api-secret-storage 的规则
 // 单独加密保存，不同步、不随项目导出。Tavily / Exa 共用 apiKey、baseUrl；DeepSeek 搜索
 // 用自己的 deepseekApiKey、deepseekBaseUrl，选中时预填已配置的 DeepSeek 服务商 Key 和地址，
-// 用户可以改；留空时发请求前再取一次已配置的 DeepSeek 服务商。
+// 用户可以改；留空时发请求前再取一次已配置的 DeepSeek 服务商。DeepSeek 搜索还可以让 AI
+// 读取网页全文（deepseekReadWebpage，默认开启）。
 
 import { isDeepSeekPresetConfig } from './ai-provider-compat.js';
 
@@ -74,5 +75,10 @@ export function resolveFunctionSearchConfig(apiConfig, ...fallbackConfigs) {
     const apiKey = trimmed(searchConfig.deepseekApiKey) || configured?.apiKey || '';
     if (!apiKey) return null;
     const baseUrl = trimmed(searchConfig.deepseekBaseUrl) || configured?.baseUrl || DEEPSEEK_SEARCH_DEFAULT_BASE_URL;
-    return { tool, provider: tool, apiKey, baseUrl };
+    return { tool, provider: tool, apiKey, baseUrl, readWebpage: isDeepSeekReadWebpageEnabled(searchConfig) };
+}
+
+/** DeepSeek 搜索时是否同时让 AI 读取网页全文（默认开启，设置面板可关）。 */
+export function isDeepSeekReadWebpageEnabled(searchConfig) {
+    return searchConfig?.deepseekReadWebpage !== false;
 }
