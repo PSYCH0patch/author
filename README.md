@@ -41,7 +41,7 @@ I watched the versatility of these models being gutted. I don't want us to live 
 - Real-time word / character / paragraph count
 
 ### 🤖 AI Writing Assistant
-- **Multi-provider support**: ZhipuAI GLM-4 / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / Volcengine / Moonshot + custom endpoints
+- **Multi-provider support**: ZhipuAI GLM / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / Volcengine / Alibaba Cloud Bailian / MiniMax / Moonshot + custom endpoints
 - **Smart model fetching** — one-click fetch full model list from API, keep saved models manageable even if a provider stops returning them
 - **Continue / Rewrite / Polish / Expand** — one-click generation
 - **Immersive Writing Engine (Ghost Text)** streaming preview — see AI output in real-time like Cursor, with accept/reject
@@ -223,7 +223,7 @@ Author supports multiple AI providers. Configure via **environment variables** o
 
 | Provider | Env Variable | Get API Key |
 |----------|-------------|-------------|
-| ZhipuAI (GLM-4) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| ZhipuAI (GLM) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
 | Google Gemini (Native) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | Google Gemini (OpenAI-compat) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | DeepSeek | In-app config | [platform.deepseek.com](https://platform.deepseek.com/) |

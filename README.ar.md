@@ -41,7 +41,7 @@
 - إحصائيات للكلمات / الحروف / الفقرات في الوقت الفعلي.
 
 ### 🤖 مساعد الكتابة الذكي
-- **دعم مزودين متعددين**: ZhipuAI GLM-4 / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / Volcengine / Moonshot ونقاط نهاية (endpoints) مخصصة.
+- **دعم مزودين متعددين**: ZhipuAI GLM / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / Volcengine / Alibaba Cloud Bailian / MiniMax / Moonshot ونقاط نهاية (endpoints) مخصصة.
 - **جلب النماذج بذكاء** — بنقرة واحدة قم باستدعاء القائمة الكاملة من الـ API، وتبقى النماذج المحفوظة قابلة للإدارة حتى إذا لم يعد المزود يعيدها في القائمة.
 - **إكمال / إعادة كتابة / تحسين / توسيع** — إنشاء المهام بنقرة واحدة.
 - **محرك الكتابة الغامر (Ghost Text)** — معاينة تدفق مخرجات الذكاء الاصطناعي في الوقت الفعلي كما الـ Cursor مع خيار القبول/الرفض.
@@ -223,7 +223,7 @@ pm2 restart author
 
 | المزود (Provider) | المتغير (Env Variable) | للحصول على المفتاح السري (API Key) |
 |----------|-------------|-------------|
-| ZhipuAI (GLM-4) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| ZhipuAI (GLM) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
 | Google Gemini (النموذج الأصلي) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | Google Gemini (تنسيقات تتوافق مع OpenAI) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | DeepSeek | تخصيص مدمج داخل المواقع | [platform.deepseek.com](https://platform.deepseek.com/) |

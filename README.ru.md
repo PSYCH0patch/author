@@ -41,7 +41,7 @@
 - Подсчет слов / символов / абзацев в реальном времени.
 
 ### 🤖 ИИ-помощник писателя
-- **Мультимодельная поддержка**: ZhipuAI GLM-4 / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / Volcengine / Moonshot + пользовательские эндпоинты.
+- **Мультимодельная поддержка**: ZhipuAI GLM / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / Volcengine / Alibaba Cloud Bailian / MiniMax / Moonshot + пользовательские эндпоинты.
 - **Умная загрузка моделей** — получение списка моделей из API в один клик; сохраненные модели остаются управляемыми даже если провайдер больше не возвращает их в списке.
 - **Продолжить / Переписать / Улучшить / Расширить** — генерация в один клик.
 - **Иммерсивный движок (Ghost Text)** потоковый предпросмотр — просматривайте вывод ИИ в реальном времени, как в Cursor, с возможностью принятия/отклонения.
@@ -223,7 +223,7 @@ Author поддерживает несколько поставщиков ИИ. 
 
 | Провайдер | Переменная окружения | Получить API Ключ |
 |----------|-------------|-------------|
-| ZhipuAI (GLM-4) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| ZhipuAI (GLM) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
 | Google Gemini (Native) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | Google Gemini (OpenAI-compat) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | DeepSeek | Конфиг в приложении | [platform.deepseek.com](https://platform.deepseek.com/) |

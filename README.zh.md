@@ -41,7 +41,7 @@
 - 实时字数/字符/段落统计
 
 ### 🤖 AI 写作助手
-- **多 AI 供应商**：智谱 GLM-4 / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / 火山引擎 / 阿里云百炼 / MiniMax / Moonshot + 自定义端点
+- **多 AI 供应商**：智谱 GLM / DeepSeek / OpenAI / Google Gemini / Claude / SiliconFlow / 火山引擎 / 阿里云百炼 / MiniMax / Moonshot + 自定义端点
 - **智能模型拉取** — 一键从 API 拉取完整模型列表；供应商不再返回的已保存模型仍可管理和清理
 - **续写 / 改写 / 润色 / 扩写**，一键生成
 - **沉浸式写作引擎（Ghost Text）** 流式预览 — 像 Cursor 一样实时显示 AI 生成内容，支持接受/拒绝
@@ -227,7 +227,7 @@ Author 支持多种 AI 供应商，你可以通过 **环境变量** 或 **应用
 
 | 供应商 | 环境变量 | 获取 API Key |
 |--------|---------|-------------|
-| 智谱 AI (GLM-4) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| 智谱 AI (GLM) | `ZHIPU_API_KEY` | [open.bigmodel.cn](https://open.bigmodel.cn/) |
 | Google Gemini（原生格式） | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | Google Gemini（OpenAI 兼容） | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | DeepSeek | 应用内配置 | [platform.deepseek.com](https://platform.deepseek.com/) |
