@@ -585,7 +585,13 @@
     "searchBuiltinCustomHint": "Uses the provider's native search (proxy must support forwarding tools parameter)",
     "searchEngine": "Search Engine",
     "tavilyHint": "Free 1000/month → tavily.com",
-    "exaHint": "Pay-per-use, free credits on signup → exa.ai"
+    "exaHint": "Pay-per-use, free credits on signup → exa.ai",
+    "searchToolDeepSeekPricing": "Billed per search from Nov 1, 2026 (UTC+8): $0.75 per 1,000 successful searches, charged to your DeepSeek balance. Failed and empty searches are free. Up to 5 searches per second per account.",
+    "searchReuseDeepSeekKey": "Use the API key of the current DeepSeek provider",
+    "searchReuseDeepSeekKeyDesc": "No need to enter it again. Uncheck to use a separate key.",
+    "searchDeepSeekSuggest": "Your provider is DeepSeek: choose \"DeepSeek\" as the search tool to use your existing key, with no extra sign-up.",
+    "searchDeepSeekBaseUrlReuse": "Leave blank to use the DeepSeek provider's API URL",
+    "searchDeepSeekBaseUrlDefault": "{url} (default, can be blank)"
   },
   "preferences": {
     "intro": "You can change your language and visual theme preferences here at any time. All changes take effect immediately and are saved locally.",

@@ -11,6 +11,7 @@ import { applyContentSafety } from '../../../lib/content-safety';
 import { proxyFetch } from '../../../lib/proxy-fetch';
 import { rotateKey } from '../../../lib/keyRotator';
 import { isOutboundRequestBlocked, isServerCredentialBlocked, resolveAiCredential, safeUpstreamDetail } from '../../../lib/server-security.mjs';
+import { isSearchRoundBlocked, runDeepSeekSearch, searchFailureToolText, searchNoticeFromError } from '../../../lib/web-search.js';
 
 // Anthropic 格式的搜索工具定义
 const WEB_SEARCH_TOOL = {
@@ -52,6 +53,12 @@ async function executeSearch(query, searchConfig, proxyUrl, signal) {
             const data = await res.json();
             return (data.results || []).map(item => ({ title: item.title || '', url: item.url || '', snippet: (item.highlights || []).join(' ') || item.text || '' }));
         }
+        case 'deepseek':
+            // 地址由客户端传入（留空时客户端补 DeepSeek 服务商地址），失败时抛 SearchProviderError
+            return runDeepSeekSearch({
+                query, apiKey: searchConfig.apiKey, baseUrl: searchConfig.baseUrl, signal,
+                fetchImpl: (url, options) => proxyFetch(url, options, proxyUrl),
+            });
         default: return [];
     }
 }
@@ -161,12 +168,16 @@ async function handlePOST(request) {
                 // 收集搜索结果和来源
                 const allSources = [];
                 const toolResults = [];
+                // 限速、余额不足、Key 无效后本轮剩下的搜索直接用同一个错误回复模型，不再请求
+                let blockingSearchError = null;
+                let searchNotice = null;
 
                 for (const toolBlock of toolUseBlocks) {
                     if (toolBlock.name === 'web_search') {
                         const searchQuery = toolBlock.input?.query || userPrompt;
 
                         try {
+                            if (blockingSearchError) throw blockingSearchError;
                             const results = await executeSearch(searchQuery, toolsConfig.searchConfig, proxyUrl, signal);
 
                             const resultText = results.length > 0
@@ -184,11 +195,13 @@ async function handlePOST(request) {
                             }
                         } catch (searchErr) {
                             signal.throwIfAborted();
-                            console.error('搜索执行失败:', searchErr?.code || searchErr?.name || 'UNKNOWN');
+                            if (searchErr !== blockingSearchError) console.error('搜索执行失败:', searchErr?.code || searchErr?.name || 'UNKNOWN');
+                            if (isSearchRoundBlocked(searchErr)) blockingSearchError = searchErr;
+                            searchNotice ||= searchNoticeFromError(searchErr);
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolBlock.id,
-                                content: '搜索失败，请直接回答用户的问题。',
+                                content: searchFailureToolText(searchErr),
                             });
                         }
                     }
@@ -217,8 +230,8 @@ async function handlePOST(request) {
                     return errorResponse(round2Res.status, errorText);
                 }
 
-                // 流式转发 + 前置发送搜索来源
-                return streamClaudeResponse(round2Res, allSources, lifecycle);
+                // 流式转发 + 前置发送搜索来源和搜索失败提示
+                return streamClaudeResponse(round2Res, allSources, lifecycle, searchNotice);
             }
 
             // 模型没调用工具 → 直接把非流式结果包装成 SSE 返回
@@ -339,9 +352,11 @@ function errorResponse(status, errorText = '') {
 }
 
 // ===== 流式转发 Claude SSE 响应（可选前置搜索来源）=====
-function streamClaudeResponse(response, sources, lifecycle) {
-    return streamAiResponse(response, lifecycle, createClaudeMapper(), sources?.length
-        ? [{ grounding: { searchQueries: [], sources, supports: [] } }] : []);
+function streamClaudeResponse(response, sources, lifecycle, searchNotice = null) {
+    return streamAiResponse(response, lifecycle, createClaudeMapper(), [
+        ...(sources?.length ? [{ grounding: { searchQueries: [], sources, supports: [] } }] : []),
+        ...(searchNotice ? [{ searchNotice }] : []),
+    ]);
 }
 
 export const POST = withApiResources('/api/ai/claude', handlePOST);
