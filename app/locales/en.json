@@ -404,7 +404,16 @@
     "navSnapshots": "Snapshots",
     "navMore": "More",
     "navImport": "Import",
-    "navGithub": "GitHub"
+    "navGithub": "GitHub",
+    "exportVariantBody": "Text only",
+    "exportVariantBodyHint": "Without notes",
+    "exportVariantAnnotated": "With notes",
+    "exportVariantAnnotatedHint": "Notes shown inline in the text",
+    "exportContentLabel": "Content",
+    "exportAnnotatedBtn": "Export with Notes",
+    "previewChapterCount": "Chapters: {count}",
+    "duplicateTitleSuffix": " (new)",
+    "duplicateTitleSuffixNumbered": " (new {n})"
   },
   "page": {
     "noChapterHint": "Select or create a chapter to start writing",
@@ -420,7 +429,14 @@
     "dialogueHistory": "Chat History",
     "autoSnapshot": "Auto Snapshot",
     "autoSnapshotFail": "Auto snapshot failed:",
-    "firstChapterTitle": "Chapter 1"
+    "firstChapterTitle": "Chapter 1",
+    "splitNeedsBothSides": "Place the cursor inside the text. There must be content both before and after the split point.",
+    "splitTitleSuffix": " (Part 2)",
+    "splitDone": "Split into \"{first}\" and \"{second}\"",
+    "mergeNoNext": "There is no chapter after this one to merge.",
+    "mergeDone": "Merged \"{title}\" into the current chapter",
+    "chapterMarkedSpecial": "\"{title}\" marked as a special chapter and will be skipped when renumbering",
+    "chapterRestoredNormal": "\"{title}\" restored as a normal chapter"
   },
   "snapshot": {
     "title": "Time Machine (Version Snapshots)",
@@ -675,7 +691,9 @@
     "updateAvailable": "New version {version} available!",
     "checkFailed": "Failed to check for updates, please try again later",
     "goUpdate": "Go to Update",
-    "close": "Close"
+    "close": "Close",
+    "codeUpdatedRestart": "Code updated. Restart the service to apply it.",
+    "codeUpdatedRestartVersion": "Code updated to v{version}. Restart the service to apply it."
   },
   "modelPicker": {
     "search": "Search models…",
@@ -782,5 +800,16 @@
     "savingLocal": "Saving locally...",
     "localSaveFailed": "Local saving has not completed. Retry before exiting.",
     "localSaveErrorPrefix": "Local save failed: "
+  },
+  "slashCommands": {
+    "h1": "Heading 1",
+    "h2": "Heading 2",
+    "h3": "Heading 3",
+    "quote": "Quote",
+    "bullet": "Bulleted list",
+    "ordered": "Numbered list",
+    "task": "Task list",
+    "code": "Code block",
+    "divider": "Divider"
   }
 }

@@ -404,7 +404,16 @@
         "navSnapshots": "Снимки",
         "navMore": "Ещё",
         "navImport": "Импорт",
-        "navGithub": "GitHub"
+        "navGithub": "GitHub",
+        "exportVariantBody": "Только текст",
+        "exportVariantBodyHint": "Без заметок",
+        "exportVariantAnnotated": "С заметками",
+        "exportVariantAnnotatedHint": "Заметки показаны прямо в тексте",
+        "exportContentLabel": "Содержимое",
+        "exportAnnotatedBtn": "Экспорт с заметками",
+        "previewChapterCount": "Глав: {count}",
+        "duplicateTitleSuffix": " (новая)",
+        "duplicateTitleSuffixNumbered": " (новая {n})"
     },
     "page": {
         "noChapterHint": "Выберите или создайте главу, чтобы начать писать",
@@ -420,7 +429,14 @@
         "dialogueHistory": "История чата",
         "autoSnapshot": "Автосохранение",
         "autoSnapshotFail": "Ошибка автосохранения:",
-        "firstChapterTitle": "Глава 1"
+        "firstChapterTitle": "Глава 1",
+        "splitNeedsBothSides": "Поставьте курсор внутри текста: и до, и после точки разделения должен быть текст.",
+        "splitTitleSuffix": " (часть 2)",
+        "splitDone": "Глава разделена на «{first}» и «{second}»",
+        "mergeNoNext": "После этой главы нет главы для объединения.",
+        "mergeDone": "Глава «{title}» объединена с текущей",
+        "chapterMarkedSpecial": "\"{title}\" отмечена как специальная глава и будет пропущена при перенумерации",
+        "chapterRestoredNormal": "\"{title}\" восстановлена как обычная глава"
     },
     "snapshot": {
         "title": "Машина времени (Снимки версий)",
@@ -675,7 +691,9 @@
         "updateAvailable": "Доступна новая версия {version}!",
         "checkFailed": "Не удалось проверить обновления, попробуйте позже",
         "goUpdate": "Перейти к обновлению",
-        "close": "Закрыть"
+        "close": "Закрыть",
+        "codeUpdatedRestart": "Код обновлен. Перезапустите сервис, чтобы применить изменения.",
+        "codeUpdatedRestartVersion": "Код обновлен до v{version}. Перезапустите сервис, чтобы применить изменения."
     },
     "modelPicker": {
         "search": "Поиск моделей…",
@@ -782,5 +800,16 @@
         "savingLocal": "Локальное сохранение...",
         "localSaveFailed": "Локальное сохранение не завершено. Повторите попытку перед выходом.",
         "localSaveErrorPrefix": "Ошибка локального сохранения: "
+    },
+    "slashCommands": {
+        "h1": "Заголовок 1",
+        "h2": "Заголовок 2",
+        "h3": "Заголовок 3",
+        "quote": "Цитата",
+        "bullet": "Маркированный список",
+        "ordered": "Нумерованный список",
+        "task": "Список задач",
+        "code": "Блок кода",
+        "divider": "Разделитель"
     }
 }
